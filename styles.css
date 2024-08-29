@@ -1,0 +1,83 @@
+
+body{
+    background: url('images/blackgb.jpg') rgba(0, 0, 0, 0.3);
+    background-blend-mode: multiply;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+@media (max-width: 991px){
+    .sidebar{
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        backdrop-filter: blur(10px) !important;
+    }
+}
+
+.navbar-brand{
+    position: relative;
+    left: 50%;
+}
+
+.dashboard-header {
+    text-align: center;
+    padding: 20px 0;
+    background-color: #ff0000;
+    color: #000000;
+    margin-bottom: 30px;
+}
+
+/* Section Styling */
+.section {
+    margin-bottom: 30px;
+}
+
+.standings-section,
+.achievements-section {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Styling */
+.standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.standings-table th,
+.standings-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+}
+
+.standings-table th {
+    background-color: #333;
+    color: white;
+}
+
+/* Achievements Card Styling */
+.achievements-section .achievement-card {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.achievements-section .achievement-card h4 {
+    margin-bottom: 10px;
+}
+
+.achievements-section .achievement-card ul {
+    list-style-type: none;
+    padding-left: 15px;
+}
+
+.achievements-section .achievement-card ul li {
+    margin-bottom: 5px;
+}

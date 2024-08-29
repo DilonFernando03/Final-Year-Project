@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Dashboard</title>
+    <!-- Include Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="J. Stulemeijer" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <title>Offcanvas Component Navbar Example · Bootstrap v5.2.0 Beta1</title>
+    <link rel="canonical" href="https://getbootstrap.com/docs/5.0/examples/starter-template/">    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+</head>
+
+<body class="vh-100 overflow-hidden"> 
+
+    <!--Navbar-->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-transparent">
+        <div class="container-fluid">
+
+            <!--Logo-->
+          <a class="navbar-brand" href="#">Formula 1</a>
+
+          <!--Toggle Button-->
+          <button class="navbar-toggler shadow-none border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <!--Sidebar-->
+          <div class="sidebar offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+
+            <!--Sidebar Header-->
+            <div class="offcanvas-header text-white border-bottom">
+              <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Offcanvas</h5>
+              <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+
+            <!--Sidebar Body-->
+            <div class="offcanvas-body">
+              <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                <li class="nav-item mx-2">
+                    <a class="nav-link active" aria-current="page" href="#">Home</a>
+                </li>
+                <li class="nav-item mx-2">
+                  <a class="nav-link" href="#">Teams</a>
+                </li>
+                <li class="nav-item mx-2">
+                    <a class="nav-link" href="#">Drivers</a>
+                </li>
+                <li class="nav-item mx-2">
+                    <a class="nav-link" href="#">Results</a>
+                </li>
+                <li class="nav-item mx-2">
+                    <a class="nav-link" href="#">Calendar</a>
+                </li>
+            </div>
+          </div>
+        </div>
+    </nav> 
+    
+    <!-- Hero Section -->
+    <section class="hero bg-dark text-white text-center py-5">
+        <div class="container">
+            <h1 class="display-4">F1 Visualization Dashboard</h1>
+            <p class="lead">Explore F1 Race Data and Insights</p>
+            <a href="#data-overview" class="btn btn-primary btn-lg">Start Exploring</a>
+        </div>
+    </section>
+
+    <!-- Data Overview Section -->
+    <section id="data-overview" class="py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-center mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Current Leader</h5>
+                            <p class="card-text">Lewis Hamilton</p>
+                            <a href="#" class="btn btn-outline-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Upcoming Race</h5>
+                            <p class="card-text">Monaco Grand Prix</p>
+                            <a href="#" class="btn btn-outline-primary">View Schedule</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Recent Winner</h5>
+                            <p class="card-text">Max Verstappen</p>
+                            <a href="#" class="btn btn-outline-primary">View Race Recap</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Visualizations Section -->
+    <section id="visualizations" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-4">Interactive Visualizations</h2>
+            <!-- Example Chart Placeholder -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-placeholder mb-4">
+                        <h5>Race Results</h5>
+                        <div class="chart" style="height: 300px; background-color: #e9ecef;">Chart Placeholder</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-placeholder mb-4">
+                        <h5>Driver Standings</h5>
+                        <div class="chart" style="height: 300px; background-color: #e9ecef;">Chart Placeholder</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Data Section -->
+    <section id="live-data" class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-4">Live Data and Updates</h2>
+            <!-- Live Data Placeholder -->
+            <div class="live-data-placeholder" style="height: 200px; background-color: #f8f9fa;">Live Data Placeholder</div>
+        </div>
+    </section>
+
+    <!-- Historical Data Section -->
+    <section id="historical-data" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-4">Historical Data and Analytics</h2>
+            <!-- Historical Data Placeholder -->
+            <div class="historical-data-placeholder" style="height: 300px; background-color: #e9ecef;">Historical Data Placeholder</div>
+        </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer class="bg-dark text-white text-center py-4">
+        <div class="container">
+            <p>&copy; 2024 F1 Visualization Dashboard. All Rights Reserved.</p>
+            <a href="#" class="text-white">Privacy Policy</a> | <a href="#" class="text-white">Terms of Use</a> | <a href="#" class="text-white">Contact Us</a>
+        </div>
+    </footer>
+
+    <!-- Include Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+
+    <!-- Include Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pprn3073KE6tl6bjs2QrFaJGz5/SUsLqktiwsUTF55Jfv3qYSDhgCecCxMW52nD2" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+</body>
+
+</html>
+</html>
