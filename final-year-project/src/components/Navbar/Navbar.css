@@ -26,7 +26,7 @@
     color: aliceblue;
     justify-self: start;
     margin-left: 20px;
-    cursor:pointer;
+    cursor: auto;
     text-decoration: none;
     font-size: 2rem;
     display: flex;
