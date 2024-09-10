@@ -1,0 +1,20 @@
+/* Dashboard.css */
+.dashboard-container {
+    text-align: center;
+  }
+  
+  .chart-container {
+    display: flex;
+    justify-content: space-around; /* Space between charts */
+    align-items: flex-start; /* Align charts at the top */
+    margin-top: 20px;
+  }
+  
+  .chart {
+    width: 45%; /* Adjust the width of each chart */
+  }
+  
+  .heatmap {
+    margin-left: 20px; /* Add space between the LineChart and Heatmap */
+  }
+  
