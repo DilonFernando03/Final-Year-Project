@@ -144,12 +144,23 @@ function Dashboard() {
               <LineChart 
                 primaryDriver={primaryDriver} 
                 secondaryDriver={secondaryDriver} 
-                lap={lap}
                 sessionKey={sessionKey}
                 meetingKey={meetingKey}
               />
+
+            {/* RadarChart */}
+            <div className="chart-container">
+              <RadarChart 
+                primaryDriver={primaryDriver} 
+                secondaryDriver={secondaryDriver}
+                lap={lap}
+                sessionKey={sessionKey}
+                meetingKey={meetingKey} 
+              />
             </div>
+      </div>
           </>
+
         )}
       </div>
     </div>

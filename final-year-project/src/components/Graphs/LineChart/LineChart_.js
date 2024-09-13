@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Chart from 'chart.js/auto';
 
-function LineChart({ primaryDriver, secondaryDriver, lap, sessionKey, meetingKey }) {
+function LineChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey }) {
   const [primaryDriverData, setPrimaryDriverData] = useState([]);
   const [secondaryDriverData, setSecondaryDriverData] = useState([]);
   const chartRef = useRef(null);
@@ -11,23 +11,23 @@ function LineChart({ primaryDriver, secondaryDriver, lap, sessionKey, meetingKey
     try {
       const driverNumber = getDriverNumber(driver); // You need to implement this function
       const response = await fetch(
-        `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}&lap_number=${lap}`
+        `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}`
       );
       const testData = await response.json();
 
-      // Log fetched data for debugging
-      console.log(`Lap Data for ${driver}:`, testData);
+      /*Log fetched data for debugging
+      console.log(`Lap Data for ${driver}:`, testData);*/
 
       const processedLapData = testData.map((lap) => ({
         lap_duration: lap.lap_duration,
-        lap_number: lap.lap_number,
+        lap_number: lap.lap_number
       }));
 
       setLapData(processedLapData);
     } catch (error) {
       console.error('Error fetching lap data:', error);
     }
-  }, [sessionKey, meetingKey, lap]);
+  }, [sessionKey, meetingKey]);
 
   useEffect(() => {
     if (primaryDriver) {
@@ -36,7 +36,7 @@ function LineChart({ primaryDriver, secondaryDriver, lap, sessionKey, meetingKey
     if (secondaryDriver) {
       fetchData(secondaryDriver, setSecondaryDriverData);
     }
-  }, [primaryDriver, secondaryDriver, lap, sessionKey, meetingKey, fetchData]);
+  }, [primaryDriver, secondaryDriver, sessionKey, meetingKey, fetchData]);
 
   useEffect(() => {
     if (primaryDriverData.length > 0) {
@@ -66,6 +66,29 @@ function LineChart({ primaryDriver, secondaryDriver, lap, sessionKey, meetingKey
           scales: {
             y: {
               beginAtZero: false,
+              ticks: {
+                callback: function(value) {
+                  const minutes = Math.floor(value / 60);
+                  const seconds = (value % 60).toFixed(2);
+                  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                },
+              },
+              title: {
+                display: true,
+                text: 'Lap Times',
+              },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(tooltipItem) {
+                  const value = tooltipItem.raw;
+                  const minutes = Math.floor(value / 60);
+                  const seconds = (value % 60).toFixed(2);
+                  return `Lap Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;  
+                },
+              },
             },
           },
         },
