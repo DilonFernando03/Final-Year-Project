@@ -6,7 +6,7 @@ import './Dashboard.css'; // Import the CSS file for layout
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
-  const [secondaryDriver, setSecondaryDriver] = useState('');
+  const [secondaryDriver, setSecondaryDriver] = useState(''); // Secondary driver is optional
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
   const [lap, setLap] = useState(null);
@@ -18,7 +18,6 @@ function Dashboard() {
 
   useEffect(() => {
     if (year) {
-      // Fetch available races for the selected year
       const fetchRacesForYear = async () => {
         try {
           const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&session_name=Race`);  
@@ -31,51 +30,30 @@ function Dashboard() {
       };
       fetchRacesForYear();
     }
-    else{
-    }
   }, [year]);
 
   useEffect(() => {
     if (meetingKey && sessionKey) {
-      // Fetch number of laps for the selected race
       const fetchLapsForRace = async () => {
         try {
           const response = await fetch(`https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
-          
-          // Initialize an empty array to hold unique lap numbers
-          const lap_data = [];
-          
-          // Iterate through laps and add unique lap numbers to the array
-          data.map(lap => {
-            if (lap.lap_number && !lap_data.some(existingLap => existingLap === lap.lap_number)) {
-              lap_data.push(lap.lap_number);
-            }
-          });
-          
+          const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Unique lap numbers
           setAvailableLaps(lap_data);
-          console.log("lap numbers: ", lap_data);
         } catch (error) {
           console.error('Error fetching laps:', error);
         }
       };
-      
       fetchLapsForRace();
     }
-  }, [meetingKey, sessionKey]); // Ensure dependencies are correct
-  
+  }, [meetingKey, sessionKey]);
 
-  // Fetch session_key and meeting_key based on year and race
   useEffect(() => {
     const fetchKeys = async () => {
       if (year && race) {
         try {
           const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&country_name=${race}&session_name=Race`);
           const data = await response.json();
-
-          // Log the data to ensure it's being fetched correctly
-          console.log('Session and Meeting Keys Response:', data[0]);
-
           if (data && data.length > 0 && data[0].session_key && data[0].meeting_key) {
             setSessionKey(data[0].session_key);
             setMeetingKey(data[0].meeting_key);
@@ -87,9 +65,32 @@ function Dashboard() {
         }
       }
     };
-
     fetchKeys();
   }, [year, race]);
+
+  // Fetch driver data for primary and secondary drivers
+  useEffect(() => {
+    const fetchDriverData = async () => {
+      if (meetingKey && sessionKey) {
+        try {
+          const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
+          const data = await response.json();
+          console.log(data);
+          const driverData = data.map((driver) => driver.full_name);
+          if (primaryDriver) {
+            setPrimaryDriver(driverData);
+          }
+          if (secondaryDriver) {
+            setSecondaryDriver(driverData);
+             // Fetch secondary driver only if selected
+          }
+        } catch (error) {
+          console.error('Error fetching driver data:', error);
+        }
+      }
+    };
+    fetchDriverData();
+  }, [meetingKey, sessionKey]);
 
   return (
     <div className="dashboard-container">
@@ -143,10 +144,11 @@ function Dashboard() {
             <div className="chart">
               <LineChart 
                 primaryDriver={primaryDriver} 
-                secondaryDriver={secondaryDriver} 
+                secondaryDriver={secondaryDriver} // Pass secondary driver data if available
                 sessionKey={sessionKey}
                 meetingKey={meetingKey}
               />
+            </div>
 
             {/* RadarChart */}
             <div className="chart-container">
@@ -158,9 +160,7 @@ function Dashboard() {
                 meetingKey={meetingKey} 
               />
             </div>
-      </div>
           </>
-
         )}
       </div>
     </div>

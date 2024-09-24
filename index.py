@@ -2,7 +2,7 @@ import json
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 
-openf1_api_url = 'https://api.openf1.org/v1/Laps?meeting_key=1143&session_key=7787&driver_number=1'
+openf1_api_url = 'https://api.openf1.org/v1/drivers?meeting_key=1143&session_key=7787'
 
 # Function to fetch data from a given API URL
 def fetch_data(api_url):
@@ -16,12 +16,12 @@ def fetch_data(api_url):
         # Iterate over each lap in the json_data and print lap_number
         if isinstance(json_data, list):
             for lap in json_data:
-                lap_number = lap.get('lap_number')
-                lap_time = lap.get('lap_duration')
-                if lap_number is not None:
-                    print(f"Lap Number: {lap_number}, Time: {lap_time}")
+                driver_name = lap.get('full_name')
+                driver_number = lap.get('driver_number')
+                if driver_number is not None:
+                    print(f"Driver Number: {driver_number}, Full Name: {driver_name}")
                 else:
-                    print("Lap number not found for one of the laps.")
+                    print("Drivers not found")
         else:
             print("Unexpected data format. Expected a list of laps.")
         

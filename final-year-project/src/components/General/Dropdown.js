@@ -2,47 +2,7 @@
 
 import React from 'react';
 
-function DriverDropdown({ onDriverChange }) {
-  const drivers = [
-    'Max Verstappen',
-    'Sergio Perez',
-    'Lewis Hamilton',
-    'George Russell',
-    'Charles Leclerc',
-    'Carlos Sainz',
-    'Lando Norris',
-    'Oscar Piastri',
-    'Fernando Alonso',
-    'Lance Stroll',
-    'Esteban Ocon',
-    'Pierre Gasly',
-    'Yuki Tsunoda',
-    'Daniel Ricciardo',
-    'Alexander Albon',
-    'Franco Colapinto',
-    'Zhou Guanyu',
-    'Valtteri Bottas',
-  ];
 
-  const handleChange = (event) => {
-    const selectedDriver = event.target.value;
-    onDriverChange(selectedDriver);
-  };
-
-  return (
-    <div className="dropdown-container">
-      <label htmlFor="driver">Select a Driver:</label>
-      <select className="common-dropdown" onChange={handleChange}>
-        <option value="">Select a Driver</option>
-        {drivers.map((driver, index) => (
-          <option key={index} value={driver}>
-            {driver}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
 
 function RaceDropdown({ races, onRaceChange }) {
   const handleChange = (event) => {
@@ -88,6 +48,27 @@ function YearDropdown({ onYearChange }) {
   );
 }
 
+function DriverDropdown({ drivers, onDriverChange }) {
+  const handleChange = (event) => {
+    const selectedDriver = event.target.value;
+    onDriverChange(selectedDriver);
+  };
+
+  return (
+    <div className="dropdown-container">
+      <label htmlFor="driver">Select a Driver:</label>
+      <select className="common-dropdown" onChange={handleChange}>
+        <option value="">Select a Driver</option>
+        {drivers.map((driver, index) => (
+          <option key={index} value={driver}>
+            {driver}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function LapDropdown({ laps, onLapChange }) {
   const handleChange = (event) => {
     const selectedLap = event.target.value;
@@ -107,6 +88,7 @@ function LapDropdown({ laps, onLapChange }) {
       </select>
     </div>
   );
+
 }
 
 

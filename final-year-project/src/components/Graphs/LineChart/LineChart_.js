@@ -10,6 +10,8 @@ function LineChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey }) {
   const fetchData = useCallback(async (driver, setLapData) => {
     try {
       const driverNumber = getDriverNumber(driver); // You need to implement this function
+      console.log(meetingKey);
+      console.log(sessionKey);
       const response = await fetch(
         `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}`
       );
