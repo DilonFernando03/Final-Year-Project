@@ -5,17 +5,19 @@ import RadarChart from '../Graphs/RadarChart/RadarChart';
 import './Dashboard.css'; // Import the CSS file for layout
 
 function Dashboard() {
-  const [primaryDriver, setPrimaryDriver] = useState(null);
-  const [secondaryDriver, setSecondaryDriver] = useState(''); // Secondary driver is optional
+  const [primaryDriver, setPrimaryDriver] = useState(null); // Store the selected primary driver
+  const [secondaryDriver, setSecondaryDriver] = useState(''); // Store the selected secondary driver (optional)
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
   const [lap, setLap] = useState(null);
+  const [drivers, setDrivers] = useState([]); // Store the list of available drivers
 
   const [sessionKey, setSessionKey] = useState(null);
   const [meetingKey, setMeetingKey] = useState(null);
   const [availableRaces, setAvailableRaces] = useState([]); // List of races based on year
   const [availableLaps, setAvailableLaps] = useState([]);   // List of laps based on selected race
 
+  // Fetch available races based on the selected year
   useEffect(() => {
     if (year) {
       const fetchRacesForYear = async () => {
@@ -32,13 +34,14 @@ function Dashboard() {
     }
   }, [year]);
 
+  // Fetch laps based on the selected race (meetingKey, sessionKey)
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchLapsForRace = async () => {
         try {
           const response = await fetch(`https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
-          const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Unique lap numbers
+          const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Get unique lap numbers
           setAvailableLaps(lap_data);
         } catch (error) {
           console.error('Error fetching laps:', error);
@@ -48,6 +51,7 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
+  // Fetch session_key and meeting_key based on year and race
   useEffect(() => {
     const fetchKeys = async () => {
       if (year && race) {
@@ -68,22 +72,15 @@ function Dashboard() {
     fetchKeys();
   }, [year, race]);
 
-  // Fetch driver data for primary and secondary drivers
+  // Fetch drivers based on session and meeting keys
   useEffect(() => {
     const fetchDriverData = async () => {
       if (meetingKey && sessionKey) {
         try {
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
-          console.log(data);
-          const driverData = data.map((driver) => driver.full_name);
-          if (primaryDriver) {
-            setPrimaryDriver(driverData);
-          }
-          if (secondaryDriver) {
-            setSecondaryDriver(driverData);
-             // Fetch secondary driver only if selected
-          }
+          const driverData = data.map((driver) => driver.full_name); // Only fetch full_name
+          setDrivers(driverData); // Set the drivers state with the fetched data
         } catch (error) {
           console.error('Error fetching driver data:', error);
         }
@@ -120,16 +117,18 @@ function Dashboard() {
         />
       )}
 
-      {/* First Driver Dropdown */}
+      {/* Driver Dropdown for Primary Driver */}
       <DriverDropdown 
+        drivers={drivers} // Pass dynamically loaded drivers
         onDriverChange={setPrimaryDriver} 
         label="Primary Driver:" 
       />
 
-      {/* Optional Second Driver Dropdown */}
+      {/* Optional Driver Dropdown for Secondary Driver */}
       {primaryDriver && (
         <div>
           <DriverDropdown 
+            drivers={drivers} // Pass same list of drivers
             onDriverChange={setSecondaryDriver} 
             label="Compare With (Second Driver - Optional):" 
           />
@@ -144,7 +143,7 @@ function Dashboard() {
             <div className="chart">
               <LineChart 
                 primaryDriver={primaryDriver} 
-                secondaryDriver={secondaryDriver} // Pass secondary driver data if available
+                secondaryDriver={secondaryDriver} 
                 sessionKey={sessionKey}
                 meetingKey={meetingKey}
               />

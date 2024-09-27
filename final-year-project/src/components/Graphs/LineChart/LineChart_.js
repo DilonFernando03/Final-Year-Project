@@ -9,16 +9,18 @@ function LineChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey }) {
   // useCallback to prevent unnecessary re-creation of the fetchData function
   const fetchData = useCallback(async (driver, setLapData) => {
     try {
-      const driverNumber = getDriverNumber(driver); // You need to implement this function
-      console.log(meetingKey);
-      console.log(sessionKey);
+      const fetchDriverNumber = async (driver, meetingKey, sessionKey) => {
+        const driverNumber = await getDriverNumber(driver, meetingKey, sessionKey);
+        return driverNumber;
+      };
+      // Await the fetchDriverNumber call to get the driver number
+      const driverNumber = await fetchDriverNumber(driver, meetingKey, sessionKey);
+      console.log('Driver Number:', driverNumber); // Log the actual driver number
       const response = await fetch(
         `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}`
       );
-      const testData = await response.json();
-
-      /*Log fetched data for debugging
-      console.log(`Lap Data for ${driver}:`, testData);*/
+      const testData = await response.json()
+      console.log(testData);
 
       const processedLapData = testData.map((lap) => ({
         lap_duration: lap.lap_duration,
@@ -109,26 +111,23 @@ function LineChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey }) {
 
 
 
-const getDriverNumber = (driverName) => {
-  const driverMap = {
-    'Max Verstappen': 1,
-    'Lewis Hamilton': 44,
-    'Charles Leclerc': 16,
-    'Sergio Perez': 11,
-    'Carlos Sainz': 55,
-    'Oscar Piastri': 81,
-    'Lando Norris': 4,
-    'George Russell': 63,
-    'Fernando Alonso': 14,
-    'Lance Stroll': 18,
-    'Yuki Tsunoda': 22,
-    'Daniel Ricciardo': 3,
-    'Zhou Guanyu': 24,
-    'Valterri Bottas': 77,
-    'Alex Albon': 23,
-    'Franco Colapinto': 43
-  };
-  return driverMap[driverName] || null;
+const getDriverNumber = async (driverName, meetingKey, sessionKey) => {
+  try {
+    // Fetch driver data from the API
+    const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}&full_name=${driverName}`);
+    const data = await response.json();
+    console.log(data);
+    // Find the driver based on the full name
+    const driverNum = data[0].driver_number;
+
+    // Return the driver number if the driver is found, otherwise return null
+    return driverNum;
+
+  } catch (error) {
+    console.error('Error fetching driver number:', error);
+    return null;
+  }
 };
+
 
 export default LineChart;
