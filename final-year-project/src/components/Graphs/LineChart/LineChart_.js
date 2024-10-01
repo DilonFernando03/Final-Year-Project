@@ -105,7 +105,13 @@ function LineChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey }) {
     }
   }, [primaryDriverData, secondaryDriverData, primaryDriver, secondaryDriver]);
 
-  return <canvas ref={chartRef}></canvas>;
+  return (
+    <div className="chart-box" style={{ height: '100%', width: '100%' }}>
+      <h2>{primaryDriver} vs {secondaryDriver ? secondaryDriver : 'Lap Times'}</h2>
+      <canvas ref={chartRef}></canvas>
+    </div>
+  );
+  
 }
 
 

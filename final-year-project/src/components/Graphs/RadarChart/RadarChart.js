@@ -9,10 +9,32 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
   const [secondaryDriverData, setSecondaryDriverData] = useState([]);
   const radarChartRef = useRef(null);
 
+  // Function to fetch driver number from API
+  const getDriverNumberFromAPI = async (driverName) => {
+    try {
+      const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
+      const data = await response.json();
+
+      // Find the driver based on the full name
+      const driver = data.find((driver) => driver.full_name === driverName);
+
+      // Return the driver number if the driver is found, otherwise return null
+      return driver ? driver.driver_number : null;
+    } catch (error) {
+      console.error('Error fetching driver number:', error);
+      return null;
+    }
+  };
+
   // Fetch data for a driver
   const fetchData = useCallback(async (driver, setLapData) => {
     try {
-      const driverNumber = getDriverNumber(driver);
+      const driverNumber = await getDriverNumberFromAPI(driver);
+      if (!driverNumber) {
+        console.error(`Driver number not found for ${driver}`);
+        return;
+      }
+
       const response = await fetch(
         `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}&lap_number=${lap}`
       );
@@ -22,13 +44,12 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
         lap_s1: lap.duration_sector_1,
         lap_s2: lap.duration_sector_2,
         lap_s3: lap.duration_sector_3,
-        lap_topSpeed: lap.st_speed,
         lap_number: lap.lap_number,
       }));
-      console.log(processedLapData);
+
       setLapData(processedLapData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching lap data:', error);
     }
   }, [sessionKey, meetingKey, lap]);
 
@@ -45,26 +66,22 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
     if (primaryDriverData.length > 0 || secondaryDriverData.length > 0) {
       const allSectorTimes = [
         ...primaryDriverData.map((lap) => [lap.lap_s1, lap.lap_s2, lap.lap_s3]).flat(),
-      ];
-      const allTopSpeeds = [
-        ...primaryDriverData.map((lap) => lap.lap_topSpeed),
+        ...secondaryDriverData.map((lap) => [lap.lap_s1, lap.lap_s2, lap.lap_s3]).flat()
       ];
 
+      // Compute min and max sector times across both drivers
       const sectorTimeMin = Math.min(...allSectorTimes);
       const sectorTimeMax = Math.max(...allSectorTimes);
-
-      const topSpeedMin = Math.min(...allTopSpeeds);
-      const topSpeedMax = Math.max(...allTopSpeeds);
 
       const chart = new Chart(radarChartRef.current, {
         type: 'radar',
         data: {
-          labels: ['Sector 1 Time', 'Sector 2 Time', 'Sector 3 Time', 'Top Speed'],
+          labels: ['Sector 1 Time', 'Sector 2 Time', 'Sector 3 Time'],
           datasets: [
             {
               label: `${primaryDriver}'s Lap Data`,
               data: primaryDriverData.length > 0
-                ? [primaryDriverData[0].lap_s1, primaryDriverData[0].lap_s2, primaryDriverData[0].lap_s3, primaryDriverData[0].lap_topSpeed / 10] // Scale top speed
+                ? [primaryDriverData[0].lap_s1, primaryDriverData[0].lap_s2, primaryDriverData[0].lap_s3]
                 : [],
               borderColor: 'blue',
               borderWidth: 1,
@@ -78,7 +95,7 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
             secondaryDriverData.length > 0 && {
               label: `${secondaryDriver}'s Lap Data`,
               data: secondaryDriverData.length > 0
-                ? [secondaryDriverData[0].lap_s1, secondaryDriverData[0].lap_s2, secondaryDriverData[0].lap_s3, secondaryDriverData[0].lap_topSpeed / 10] // Scale top speed
+                ? [secondaryDriverData[0].lap_s1, secondaryDriverData[0].lap_s2, secondaryDriverData[0].lap_s3]
                 : [],
               borderColor: 'red',
               borderWidth: 1,
@@ -89,21 +106,18 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
               pointHoverBackgroundColor: '#fff',
               pointHoverBorderColor: 'rgb(255, 99, 132)',
             },
-          ].filter(Boolean), // Filter out null datasets
+          ].filter(Boolean),
         },
         options: {
           scales: {
             r: {
-              suggestedMin: Math.floor(sectorTimeMin) - 5, // Dynamically set min/max based on sector times
-              suggestedMax: Math.ceil(sectorTimeMax) + 5,
+              suggestedMin: Math.floor(sectorTimeMin) - 1,
+              suggestedMax: Math.ceil(sectorTimeMax) + 1, 
               ticks: {
-                callback: function (value, index) {
-                  if (value > 100) {
-                    return `${value * 10} km/h`; // Top speed scale
-                  }
+                callback: function (value) {
                   const minutes = Math.floor(value / 60);
                   const seconds = (value % 60).toFixed(1);
-                  return `${minutes}:${seconds}`; // Sector times in mm:ss.s format
+                  return `${minutes}:${seconds}`;
                 },
               },
             },
@@ -113,21 +127,15 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
               callbacks: {
                 label: function (tooltipItem) {
                   const value = tooltipItem.raw;
-                  if (tooltipItem.label.includes('Top Speed')) {
-                    return `Top Speed: ${value * 10} km/h`; // Show top speed
-                  } else {
-                    const minutes = Math.floor(value / 60);
-                    const seconds = (value % 60).toFixed(1);
-                    return `Sector Time: ${minutes}:${seconds}`; // Show sector time
-                  }
+                  const minutes = Math.floor(value / 60);
+                  const seconds = (value % 60).toFixed(1);
+                  return `Sector Time: ${minutes}:${seconds}`; // Show sector time
                 },
               },
             },
           },
         },
       });
-
-      // Cleanup the chart on unmount
       return () => {
         chart.destroy();
       };
@@ -135,37 +143,14 @@ function RadarChart({ primaryDriver, secondaryDriver, sessionKey, meetingKey, la
   }, [primaryDriverData, secondaryDriverData]);
 
   return (
-    <div style={{ height: '400px', width: '400px' }}>
-      <canvas ref={radarChartRef}></canvas>
+    <div className="chart-box" style={{ height: '100%', width: '100%' }}>
+      <h2>{primaryDriver} {secondaryDriver ? `vs ${secondaryDriver}` : ''}</h2>
+      <div style={{ height: '400px', width: '400px' }}>
+        <canvas ref={radarChartRef}></canvas>
+      </div>
     </div>
   );
+  
 }
-
-// Function to map driver names to driver numbers
-const getDriverNumber = (driverName) => {
-  const driverMap = {
-    'Max Verstappen': 1,
-    'Lewis Hamilton': 44,
-    'Charles Leclerc': 16,
-    'Sergio Perez': 11,
-    'Carlos Sainz': 55,
-    'Oscar Piastri': 81,
-    'Lando Norris': 4,
-    'George Russell': 63,
-    'Fernando Alonso': 14,
-    'Esteban Ocon': 31,
-    'Pierre Gasly': 10,
-    'Kevin Magnussen': 20,
-    'Nico Hulkenberg': 27,
-    'Lance Stroll': 18,
-    'Yuki Tsunoda': 22,
-    'Daniel Ricciardo': 3,
-    'Zhou Guanyu': 24,
-    'Valtteri Bottas': 77,
-    'Alex Albon': 23,
-    'Franco Colapinto': 43,
-  };
-  return driverMap[driverName] || null;
-};
 
 export default RadarChart;

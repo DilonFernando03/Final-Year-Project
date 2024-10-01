@@ -3,13 +3,12 @@ import Navbar from './components/Navbar/Navbar';
 import Dashboard from './components/General/Dashboard';
 import './App.css';
 
-
 function App() {
   return (
-    <>
-    <Navbar />
-    <Dashboard/>
-    </>
+    <div className="app-container">
+      <Navbar />
+      <Dashboard />
+    </div>
   );
 }
 

@@ -1,20 +1,49 @@
-/* Dashboard.css */
 .dashboard-container {
-    text-align: center;
-  }
-  
-  .chart-container {
-    display: flex;
-    justify-content: space-around; /* Space between charts */
-    align-items: flex-start; /* Align charts at the top */
-    margin-top: 20px;
-  }
-  
-  .chart {
-    width: 45%; /* Adjust the width of each chart */
-  }
-  
-  .heatmap {
-    margin-left: 20px; /* Add space between the LineChart and Heatmap */
-  }
-  
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+.chart-container {
+  display: flex;
+  justify-content: space-around; 
+  margin-top: 20px;
+}
+
+.chart {
+  width: 400px; 
+  height: 400px; 
+}
+
+.dropdown-wrapper {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.secondary-dropdown {
+  margin-top: 15px;
+}
+
+.chart-box {
+  border: 2px solid #ccc; 
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f9f9f9;
+  width: 100%;
+  max-width: 600px; 
+}
+
+.chart-box h2 {
+  text-align: center;
+  font-size: 1.5em; 
+  margin-bottom: 10px;
+}
