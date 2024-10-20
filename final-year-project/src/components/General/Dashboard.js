@@ -1,23 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { YearDropdown, RaceDropdown, DriverDropdown, LapDropdown } from './Dropdown';
+import { YearDropdown, RaceDropdown, DriverDropdown } from './Dropdown';
 import LineChart from '../Graphs/LineChart/LineChart_';
-import RadarChart from '../Graphs/RadarChart/RadarChart';
+import SingeLapCharts from '../Graphs/SingleLapCharts/SingleLapCharts';
+import Weather from '../Weather/Weather';
 import './Dashboard.css'; // Import the CSS file for layout
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
-  const [secondaryDriver, setSecondaryDriver] = useState('');
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
   const [lap, setLap] = useState(null);
-  const [drivers, setDrivers] = useState([]); 
-
+  const [drivers, setDrivers] = useState([]);
+  const [availableRaces, setAvailableRaces] = useState([]);
+  const [availableLaps, setAvailableLaps] = useState([]);
   const [sessionKey, setSessionKey] = useState(null);
   const [meetingKey, setMeetingKey] = useState(null);
-  const [availableRaces, setAvailableRaces] = useState([]); 
-  const [availableLaps, setAvailableLaps] = useState([]);  
+  const [driverImage, setDriverImage] = useState('');
+  const [driverColour, setDriverColour] = useState('');
 
-  // Fetch races when the year is selected
+  // Fetch races when year is selected
   useEffect(() => {
     if (year) {
       const fetchRacesForYear = async () => {
@@ -25,7 +26,7 @@ function Dashboard() {
           const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&session_name=Race`);
           const data = await response.json();
           const racetrack_data = data.map((track) => track.country_name);
-          setAvailableRaces(racetrack_data); 
+          setAvailableRaces(racetrack_data);
         } catch (error) {
           console.error('Error fetching races:', error);
         }
@@ -34,7 +35,31 @@ function Dashboard() {
     }
   }, [year]);
 
-  // Fetch laps when the session and meeting keys are available
+  // Fetch driver image and team color when the primary driver is selected
+  useEffect(() => {
+    if (primaryDriver) {
+      const fetchDriverDetails = async () => {
+        try {
+          const response = await fetch(`https://api.openf1.org/v1/drivers?full_name=${primaryDriver}`);
+          const data = await response.json();
+          const driverImageUrl = data[0].headshot_url;
+          let driverColour = data[0].team_colour;
+
+          if (!driverColour.startsWith('#')) {
+            driverColour = `#${driverColour}`;
+          }
+
+          setDriverImage(driverImageUrl);
+          setDriverColour(driverColour); // Set the team color with proper formatting
+        } catch (error) {
+          console.error('Error fetching driver details:', error);
+        }
+      };
+      fetchDriverDetails();
+    }
+  }, [primaryDriver]);
+
+  // Fetch laps when sessionKey and meetingKey are available
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchLapsForRace = async () => {
@@ -42,7 +67,7 @@ function Dashboard() {
           const response = await fetch(`https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Unique lap numbers
-          setAvailableLaps(lap_data);
+          setAvailableLaps(lap_data); // <--- Ensure availableLaps is set here
         } catch (error) {
           console.error('Error fetching laps:', error);
         }
@@ -91,43 +116,45 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <h1>Visualize and Compare Driver Lap Times</h1>
 
-      <div className="dropdown-wrapper">
+      <div className="dropdown-row">
         {/* Year Dropdown */}
         <YearDropdown onYearChange={setYear} label="Year: " />
 
         {/* Race Dropdown */}
-        {year && (
-          <RaceDropdown races={availableRaces} onRaceChange={setRace} label="Race: " />
-        )}
+        <RaceDropdown races={availableRaces} onRaceChange={setRace} label="Race: " disabled={!year} />
 
-        {/* Lap Dropdown */}
-        {race && (
-          <LapDropdown laps={availableLaps} onLapChange={setLap} label="Lap: " />
-        )}
-      </div>
-
-      <div className="dropdown-wrapper">
         {/* Driver Dropdown for Primary Driver */}
-        <DriverDropdown drivers={drivers} onDriverChange={setPrimaryDriver} label="Primary Driver:" />
-
-        {/* Optional Driver Dropdown for Secondary Driver */}
-        {primaryDriver && (
-          <div className="secondary-dropdown">
-            <DriverDropdown drivers={drivers} onDriverChange={setSecondaryDriver} label="Compare With (Optional):" />
-          </div>
-        )}
+        <DriverDropdown drivers={drivers} onDriverChange={setPrimaryDriver} label="Primary Driver:" disabled={!year || !race} />
       </div>
+
+      {/* Add the WeatherBox component, passing the meetingKey */}
+      <Weather meetingKey={meetingKey} sessionKey={sessionKey}/>
+
+       {/* Conditionally display the driver's image and bordered box */}
+       {primaryDriver && (
+        <div className="driver-image-wrapper" style={{ backgroundColor: driverColour }}>
+          {driverImage && (
+            <img src={driverImage} alt={`${primaryDriver}`} className="driver-image" />
+          )}
+        </div>
+      )}
 
       <div className="chart-container">
         {primaryDriver && sessionKey && meetingKey && (
           <>
             <div className="chart">
-              <LineChart primaryDriver={primaryDriver} secondaryDriver={secondaryDriver} sessionKey={sessionKey} meetingKey={meetingKey} />
+              <LineChart primaryDriver={primaryDriver} sessionKey={sessionKey} meetingKey={meetingKey} />
             </div>
             <div className="chart">
-              <RadarChart primaryDriver={primaryDriver} secondaryDriver={secondaryDriver} lap={lap} sessionKey={sessionKey} meetingKey={meetingKey} />
+              <SingeLapCharts
+                primaryDriver={primaryDriver}
+                lap={lap}
+                onLapChange={setLap}
+                sessionKey={sessionKey}
+                meetingKey={meetingKey}
+                availableLaps={availableLaps}
+              />
             </div>
           </>
         )}

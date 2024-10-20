@@ -15,4 +15,9 @@
     background-color: #007bff;
     color: white;
   }
-  
+
+  .speedometer-container {
+    display:block;
+    align-items: center; 
+    justify-content: center;
+  }
