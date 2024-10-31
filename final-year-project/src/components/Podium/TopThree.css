@@ -1,0 +1,45 @@
+.tiles-container {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  .driver-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    border-radius: 10px;
+    color: white;
+    width: 120px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .driver-photo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    margin-bottom: 10px;
+  }
+  
+  .driver-info {
+    text-align: center;
+  }
+  
+  .delta-time {
+    font-size: 14px;
+    font-weight: bold;
+  }
+  
+  .driver-position {
+    font-weight: bold;
+    font-size: 1.2em;
+  }
+  
+  .delta-time {
+    font-style: italic;
+    color: #f0f0f0;
+  }
+  

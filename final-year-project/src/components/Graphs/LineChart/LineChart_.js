@@ -7,6 +7,7 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
   const [selectedDrivers, setSelectedDrivers] = useState([]); // Track selected drivers
   const [selectedDriversData, setSelectedDriversData] = useState([]); // Store lap data for selected drivers
   const [drivers, setDrivers] = useState([]); // Store all drivers
+  const [driverColors, setDriverColors] = useState({}); // Store driver colors
   const chartRef = useRef(null);
 
   // Helper function to capitalize the first letter of each word
@@ -18,15 +19,6 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
       .join(' ');
   };
 
-  const getRandomColor = () => {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-  };
-
   const toggleDriverSelection = (driver) => {
     setSelectedDrivers((prevSelected) =>
       prevSelected.includes(driver)
@@ -35,15 +27,22 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
     );
   };
 
-  // Fetch all drivers' data
+  // Fetch all drivers' data including colors
   useEffect(() => {
     const fetchDriverData = async () => {
       if (sessionKey && meetingKey) {
         try {
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
+          
           const driverData = data.map((driver) => driver.full_name);
-          setDrivers(driverData);  // Store driver names
+          const colors = {};
+          data.forEach(driver => {
+            colors[driver.full_name] = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
+          });
+
+          setDrivers(driverData); // Store driver names
+          setDriverColors(colors); // Store driver team colors
         } catch (error) {
           console.error('Error fetching driver data:', error);
         }
@@ -97,15 +96,15 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
         {
           label: `${primaryDriver}'s Lap Times`,
           data: primaryDriverData.map((lap) => lap.lap_duration),
-          borderColor: 'blue',
+          borderColor: driverColors[primaryDriver] || 'blue', // Use driver's team color
           borderWidth: 2,
         },
         ...selectedDrivers.map((driver, index) => {
-          const lapData = selectedDriversData[index] || []; 
+          const lapData = selectedDriversData[index] || [];
           return {
             label: `${driver}'s Lap Times`,
             data: lapData.map((lap) => lap.lap_duration),
-            borderColor: getRandomColor(),
+            borderColor: driverColors[driver], // Use driver's team color
             borderWidth: 2,
           };
         })
@@ -153,7 +152,7 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
         chart.destroy();
       };
     }
-  }, [primaryDriverData, selectedDriversData, primaryDriver]);
+  }, [primaryDriverData, selectedDriversData, primaryDriver, driverColors]);
 
   return (
     <div className="chart-box" style={{ height: '100%', width: '100%' }}>
@@ -165,6 +164,10 @@ function LineChart({ primaryDriver, sessionKey, meetingKey }) {
           <button
             key={driver}
             className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
+            style={{
+              backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'lightgray',
+              color: selectedDrivers.includes(driver) ? 'white' : 'black'
+            }}
             onClick={() => toggleDriverSelection(driver)}
           >
             {driver}

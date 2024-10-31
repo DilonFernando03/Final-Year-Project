@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import Speedometer from './Speedometer';
 import './SingleLapCharts.css';
 
 function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, availableLaps, onLapChange }) {
@@ -7,6 +8,9 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
   const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [selectedDriversData, setSelectedDriversData] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [driverColors, setDriverColors] = useState({});
+  const [driverInfoMap, setDriverInfoMap] = useState({}); // Add this line to initialize driverInfoMap
+  const [topSpeed, setTopSpeed] = useState(0);
 
   const formatDriverName = (name) => {
     return name
@@ -36,6 +40,28 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     }
   }, [meetingKey, sessionKey]);
 
+  const fetchDriverColors = useCallback(async () => {
+    try {
+      const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
+      const data = await response.json();
+
+      const colors = {};
+      const driverInfo = {};
+
+      data.forEach((driver) => {
+        const color = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
+        colors[driver.driver_number] = color;
+        driverInfo[driver.driver_number] = { name: driver.full_name, color };
+      });
+
+      setDriverColors(colors);
+      setDrivers(data.map(driver => driver.full_name));
+      setDriverInfoMap(driverInfo); // Use setDriverInfoMap here to update the state
+    } catch (error) {
+      console.error('Error fetching driver colors:', error);
+    }
+  }, [meetingKey, sessionKey]);
+
   const fetchData = useCallback(async (driver) => {
     try {
       const driverNumber = await getDriverNumberFromAPI(driver);
@@ -48,18 +74,24 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
         `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}&lap_number=${lap}`
       );
       const testData = await response.json();
-
-      return testData.map((lap) => ({
-        driver: driver,
+      const lapData = testData.map((lap) => ({
+        driver_num: lap.driver_number,
         sector1: lap.duration_sector_1,
         sector2: lap.duration_sector_2,
-        sector3: lap.duration_sector_3
+        sector3: lap.duration_sector_3,
+        top_speed: lap.st_speed 
       }));
+
+      if (lapData.length > 0 && driver === primaryDriver) {
+        setTopSpeed(lapData[0].top_speed);
+      }
+
+      return lapData;
     } catch (error) {
       console.error('Error fetching lap data:', error);
       return [];
     }
-  }, [meetingKey, sessionKey, lap, getDriverNumberFromAPI]);
+  }, [meetingKey, sessionKey, lap, getDriverNumberFromAPI, primaryDriver]);
 
   useEffect(() => {
     if (primaryDriver) {
@@ -79,61 +111,53 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     }
   }, [selectedDrivers, fetchData]);
 
-  const plotParallelCoordinates = () => {
+  const renderBarCharts = () => {
     const allData = [...primaryDriverData, ...selectedDriversData];
-    const drivers = allData.map((d) => d.driver);
-    const sector1 = allData.map((d) => d.sector1);
-    const sector2 = allData.map((d) => d.sector2);
-    const sector3 = allData.map((d) => d.sector3);
+    
+    const driverNames = allData.map((d) => driverInfoMap[d.driver_num]?.name);
+    const sector1Times = allData.map((d) => d.sector1);
+    const sector2Times = allData.map((d) => d.sector2);
+    const sector3Times = allData.map((d) => d.sector3);
+    const colors = allData.map((d) => driverInfoMap[d.driver_num]?.color);
 
     return (
-      <Plot
-        data={[
-          {
-            type: 'parcoords',
-            line: {
-              color: drivers,
-              colorscale: 'Viridis',
-            },
-            dimensions: [
-              {
-                range: [Math.min(...sector1), Math.max(...sector1)],
-                label: 'Sector 1 Time',
-                values: sector1,
-              },
-              {
-                range: [Math.min(...sector2), Math.max(...sector2)],
-                label: 'Sector 2 Time',
-                values: sector2,
-              },
-              {
-                range: [Math.min(...sector3), Math.max(...sector3)],
-                label: 'Sector 3 Time',
-                values: sector3,
-              }
-            ]
-          }
-        ]}
-        layout={{ width: 800, height: 400, title: 'Driver Sector Times Comparison' }}
-      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
+        <Plot
+          data={[{
+            x: driverNames,
+            y: sector1Times,
+            type: 'bar',
+            marker: { color: colors }
+          }]}
+          layout={{ title: 'Sector 1 Times', width: 250, height: 400 }}
+        />
+        <Plot
+          data={[{
+            x: driverNames,
+            y: sector2Times,
+            type: 'bar',
+            marker: { color: colors }
+          }]}
+          layout={{ title: 'Sector 2 Times', width: 250, height: 400 }}
+        />
+        <Plot
+          data={[{
+            x: driverNames,
+            y: sector3Times,
+            type: 'bar',
+            marker: { color: colors }
+          }]}
+          layout={{ title: 'Sector 3 Times', width: 250, height: 400 }}
+        />
+      </div>
     );
   };
 
   useEffect(() => {
-    const fetchDrivers = async () => {
-      try {
-        const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
-        const data = await response.json();
-        setDrivers(data.map(driver => driver.full_name));
-      } catch (error) {
-        console.error('Error fetching drivers:', error);
-      }
-    };
-
     if (sessionKey && meetingKey) {
-      fetchDrivers();
+      fetchDriverColors();
     }
-  }, [sessionKey, meetingKey]);
+  }, [sessionKey, meetingKey, fetchDriverColors]);
 
   return (
     <div className="chart-box" style={{ height: '100%', width: '100%', border: '1px solid #ccc', padding: '20px', borderRadius: '10px' }}>
@@ -156,6 +180,10 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
           <button
             key={driver}
             className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
+            style={{
+              backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'lightgray',
+              color: selectedDrivers.includes(driver) ? 'white' : 'black'
+            }}
             onClick={() => toggleDriverSelection(driver)}
           >
             {driver}
@@ -163,8 +191,16 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
         ))}
       </div>
 
-      <div className="charts-container">
-        {plotParallelCoordinates()}
+      {/* Render bar charts of sector analysis */}
+      <div className="charts-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+        {renderBarCharts()}
+        
+        {/* Conditionally render Speedometer */}
+        {lap && (
+          <div className="speedometer-container" style={{ marginLeft: '10px' }}>  
+            <Speedometer topSpeed={topSpeed} />
+          </div>
+        )}
       </div>
     </div>
   );

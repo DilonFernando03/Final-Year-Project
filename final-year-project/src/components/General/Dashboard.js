@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { YearDropdown, RaceDropdown, DriverDropdown } from './Dropdown';
 import LineChart from '../Graphs/LineChart/LineChart_';
-import SingeLapCharts from '../Graphs/SingleLapCharts/SingleLapCharts';
+import SingleLapCharts from '../Graphs/SingleLapCharts/SingleLapCharts';
 import Weather from '../Weather/Weather';
-import './Dashboard.css'; // Import the CSS file for layout
+import TopDrivers from '../Podium/TopThree';
+import './Dashboard.css';
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
@@ -17,6 +18,7 @@ function Dashboard() {
   const [meetingKey, setMeetingKey] = useState(null);
   const [driverImage, setDriverImage] = useState('');
   const [driverColour, setDriverColour] = useState('');
+  const [meetingOfficialName, setMeetingOfficialName] = useState(''); // New state for the official name
 
   // Fetch races when year is selected
   useEffect(() => {
@@ -25,7 +27,7 @@ function Dashboard() {
         try {
           const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&session_name=Race`);
           const data = await response.json();
-          const racetrack_data = data.map((track) => track.country_name);
+          const racetrack_data = data.map((track) => track.location);
           setAvailableRaces(racetrack_data);
         } catch (error) {
           console.error('Error fetching races:', error);
@@ -67,7 +69,7 @@ function Dashboard() {
           const response = await fetch(`https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Unique lap numbers
-          setAvailableLaps(lap_data); // <--- Ensure availableLaps is set here
+          setAvailableLaps(lap_data);
         } catch (error) {
           console.error('Error fetching laps:', error);
         }
@@ -81,7 +83,7 @@ function Dashboard() {
     const fetchKeys = async () => {
       if (year && race) {
         try {
-          const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&country_name=${race}&session_name=Race`);
+          const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&location=${race}&session_name=Race`);
           const data = await response.json();
           if (data && data.length > 0 && data[0].session_key && data[0].meeting_key) {
             setSessionKey(data[0].session_key);
@@ -114,29 +116,46 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
+  // Fetch the official meeting name when meetingKey and race are available
+  useEffect(() => {
+    const fetchMeetingOfficialName = async () => {
+      if (meetingKey && race) {
+        try {
+          const response = await fetch(`https://api.openf1.org/v1/meetings?meeting_key=${meetingKey}`);
+          const data = await response.json();
+          console.log(data)
+          const officialName = data[0].meeting_official_name;
+          console.log(officialName)
+          setMeetingOfficialName(officialName);
+        } catch (error) {
+          console.error('Error fetching meeting official name:', error);
+        }
+      }
+    };
+    fetchMeetingOfficialName();
+  }, [meetingKey, race]);
+
   return (
     <div className="dashboard-container">
-
+      {/* Display the meeting official name */}
+      {meetingOfficialName && (
+        <h1 className="meeting-title">{meetingOfficialName}</h1> // Big title for the official name
+      )}
       <div className="dropdown-row">
-        {/* Year Dropdown */}
         <YearDropdown onYearChange={setYear} label="Year: " />
-
-        {/* Race Dropdown */}
         <RaceDropdown races={availableRaces} onRaceChange={setRace} label="Race: " disabled={!year} />
-
-        {/* Driver Dropdown for Primary Driver */}
         <DriverDropdown drivers={drivers} onDriverChange={setPrimaryDriver} label="Primary Driver:" disabled={!year || !race} />
       </div>
 
-      {/* Add the WeatherBox component, passing the meetingKey */}
-      <Weather meetingKey={meetingKey} sessionKey={sessionKey}/>
+      {/* Wrap Weather and TopDrivers in a new container */}
+      <div className="info-section">
+        <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
+        <TopDrivers meetingKey={meetingKey} sessionKey={sessionKey} />
+      </div>
 
-       {/* Conditionally display the driver's image and bordered box */}
-       {primaryDriver && (
+      {primaryDriver && (
         <div className="driver-image-wrapper" style={{ backgroundColor: driverColour }}>
-          {driverImage && (
-            <img src={driverImage} alt={`${primaryDriver}`} className="driver-image" />
-          )}
+          {driverImage && <img src={driverImage} alt={`${primaryDriver}`} className="driver-image" />}
         </div>
       )}
 
@@ -147,7 +166,7 @@ function Dashboard() {
               <LineChart primaryDriver={primaryDriver} sessionKey={sessionKey} meetingKey={meetingKey} />
             </div>
             <div className="chart">
-              <SingeLapCharts
+              <SingleLapCharts
                 primaryDriver={primaryDriver}
                 lap={lap}
                 onLapChange={setLap}
