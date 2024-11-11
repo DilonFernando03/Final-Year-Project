@@ -18,7 +18,22 @@ function Dashboard() {
   const [meetingKey, setMeetingKey] = useState(null);
   const [driverImage, setDriverImage] = useState('');
   const [driverColour, setDriverColour] = useState('');
-  const [meetingOfficialName, setMeetingOfficialName] = useState(''); // New state for the official name
+  const [meetingOfficialName, setMeetingOfficialName] = useState(''); 
+
+  // Function to reset dashboard when year changes
+  const resetDashboard = () => {
+    setRace(null);
+    setPrimaryDriver(null);
+    setLap(null);
+    setDrivers([]);
+    setAvailableRaces([]);
+    setAvailableLaps([]);
+    setSessionKey(null);
+    setMeetingKey(null);
+    setDriverImage('');
+    setDriverColour('');
+    setMeetingOfficialName('');
+  };
 
   // Fetch races when year is selected
   useEffect(() => {
@@ -52,7 +67,7 @@ function Dashboard() {
           }
 
           setDriverImage(driverImageUrl);
-          setDriverColour(driverColour); // Set the team color with proper formatting
+          setDriverColour(driverColour);
         } catch (error) {
           console.error('Error fetching driver details:', error);
         }
@@ -68,7 +83,7 @@ function Dashboard() {
         try {
           const response = await fetch(`https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
-          const lap_data = [...new Set(data.map(lap => lap.lap_number))]; // Unique lap numbers
+          const lap_data = [...new Set(data.map(lap => lap.lap_number))];
           setAvailableLaps(lap_data);
         } catch (error) {
           console.error('Error fetching laps:', error);
@@ -107,7 +122,7 @@ function Dashboard() {
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           const driverData = data.map((driver) => driver.full_name);
-          setDrivers(driverData);  // Store driver names
+          setDrivers(driverData);
         } catch (error) {
           console.error('Error fetching driver data:', error);
         }
@@ -123,9 +138,7 @@ function Dashboard() {
         try {
           const response = await fetch(`https://api.openf1.org/v1/meetings?meeting_key=${meetingKey}`);
           const data = await response.json();
-          console.log(data)
           const officialName = data[0].meeting_official_name;
-          console.log(officialName)
           setMeetingOfficialName(officialName);
         } catch (error) {
           console.error('Error fetching meeting official name:', error);
@@ -139,19 +152,21 @@ function Dashboard() {
     <div className="dashboard-container">
       {/* Display the meeting official name */}
       {meetingOfficialName && (
-        <h1 className="meeting-title">{meetingOfficialName}</h1> // Big title for the official name
+        <h1 className="meeting-title">{meetingOfficialName}</h1>
       )}
       <div className="dropdown-row">
-        <YearDropdown onYearChange={setYear} label="Year: " />
+        <YearDropdown onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} label="Year: " />
         <RaceDropdown races={availableRaces} onRaceChange={setRace} label="Race: " disabled={!year} />
         <DriverDropdown drivers={drivers} onDriverChange={setPrimaryDriver} label="Primary Driver:" disabled={!year || !race} />
       </div>
 
       {/* Wrap Weather and TopDrivers in a new container */}
-      <div className="info-section">
-        <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
-        <TopDrivers meetingKey={meetingKey} sessionKey={sessionKey} />
-      </div>
+      {race && primaryDriver && (
+        <div className="info-section">
+          <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
+          <TopDrivers meetingKey={meetingKey} sessionKey={sessionKey} />
+        </div>
+      )}
 
       {primaryDriver && (
         <div className="driver-image-wrapper" style={{ backgroundColor: driverColour }}>

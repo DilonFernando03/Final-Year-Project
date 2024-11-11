@@ -9,7 +9,7 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
   const [selectedDriversData, setSelectedDriversData] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [driverColors, setDriverColors] = useState({});
-  const [driverInfoMap, setDriverInfoMap] = useState({}); // Add this line to initialize driverInfoMap
+  const [driverInfoMap, setDriverInfoMap] = useState({}); // Initialize driverInfoMap here
   const [topSpeed, setTopSpeed] = useState(0);
 
   const formatDriverName = (name) => {
@@ -28,7 +28,31 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     );
   };
 
-  const getDriverNumberFromAPI = useCallback(async (driverName) => {
+  // Fetch driver colors, names, and populate driverInfoMap
+  const fetchDriverColors = useCallback(async () => {
+    try {
+      const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
+      const data = await response.json();
+
+      const colors = {};
+      const infoMap = {};
+
+      data.forEach((driver) => {
+        const color = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
+        colors[driver.full_name] = color;
+        infoMap[driver.driver_number] = { name: driver.full_name, color };
+      });
+
+      setDrivers(data.map(driver => driver.full_name));
+      setDriverColors(colors);
+      setDriverInfoMap(infoMap);
+    } catch (error) {
+      console.error('Error fetching driver colors:', error);
+    }
+  }, [meetingKey, sessionKey]);
+
+  // Define getDriverNumberFromAPI function to fetch driver number by name
+  const getDriverNumberFromAPI = async (driverName) => {
     try {
       const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
       const data = await response.json();
@@ -38,42 +62,19 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
       console.error('Error fetching driver number:', error);
       return null;
     }
-  }, [meetingKey, sessionKey]);
+  };
 
-  const fetchDriverColors = useCallback(async () => {
-    try {
-      const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
-      const data = await response.json();
-
-      const colors = {};
-      const driverInfo = {};
-
-      data.forEach((driver) => {
-        const color = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
-        colors[driver.driver_number] = color;
-        driverInfo[driver.driver_number] = { name: driver.full_name, color };
-      });
-
-      setDriverColors(colors);
-      setDrivers(data.map(driver => driver.full_name));
-      setDriverInfoMap(driverInfo); // Use setDriverInfoMap here to update the state
-    } catch (error) {
-      console.error('Error fetching driver colors:', error);
-    }
-  }, [meetingKey, sessionKey]);
-
+  // Fetch lap data for the driver
   const fetchData = useCallback(async (driver) => {
     try {
       const driverNumber = await getDriverNumberFromAPI(driver);
-      if (!driverNumber) {
-        console.error(`Driver number not found for ${driver}`);
-        return [];
-      }
+      if (!driverNumber) return [];
 
       const response = await fetch(
         `https://api.openf1.org/v1/Laps?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driverNumber}&lap_number=${lap}`
       );
       const testData = await response.json();
+
       const lapData = testData.map((lap) => ({
         driver_num: lap.driver_number,
         sector1: lap.duration_sector_1,
@@ -91,7 +92,7 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
       console.error('Error fetching lap data:', error);
       return [];
     }
-  }, [meetingKey, sessionKey, lap, getDriverNumberFromAPI, primaryDriver]);
+  }, [meetingKey, sessionKey, lap, primaryDriver]);
 
   useEffect(() => {
     if (primaryDriver) {
@@ -111,6 +112,12 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     }
   }, [selectedDrivers, fetchData]);
 
+  useEffect(() => {
+    if (sessionKey && meetingKey) {
+      fetchDriverColors();
+    }
+  }, [sessionKey, meetingKey, fetchDriverColors]);
+
   const renderBarCharts = () => {
     const allData = [...primaryDriverData, ...selectedDriversData];
     
@@ -119,6 +126,14 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     const sector2Times = allData.map((d) => d.sector2);
     const sector3Times = allData.map((d) => d.sector3);
     const colors = allData.map((d) => driverInfoMap[d.driver_num]?.color);
+
+    // Calculate y-axis ranges to zoom into the relevant sector times
+    const getAxisRange = (sectorTimes) => {
+      const min = Math.min(...sectorTimes);
+      const max = Math.max(...sectorTimes);
+      const padding = (max - min) * 0.1; // Add a 10% padding
+      return [min - padding, max + padding];
+    };
 
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
@@ -129,7 +144,12 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             type: 'bar',
             marker: { color: colors }
           }]}
-          layout={{ title: 'Sector 1 Times', width: 250, height: 400 }}
+          layout={{ 
+            title: 'Sector 1 Times', 
+            width: 250, 
+            height: 400, 
+            yaxis: { range: getAxisRange(sector1Times) }
+          }}
         />
         <Plot
           data={[{
@@ -138,7 +158,12 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             type: 'bar',
             marker: { color: colors }
           }]}
-          layout={{ title: 'Sector 2 Times', width: 250, height: 400 }}
+          layout={{ 
+            title: 'Sector 2 Times', 
+            width: 250, 
+            height: 400, 
+            yaxis: { range: getAxisRange(sector2Times) }
+          }}
         />
         <Plot
           data={[{
@@ -147,17 +172,16 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             type: 'bar',
             marker: { color: colors }
           }]}
-          layout={{ title: 'Sector 3 Times', width: 250, height: 400 }}
+          layout={{ 
+            title: 'Sector 3 Times', 
+            width: 250, 
+            height: 400, 
+            yaxis: { range: getAxisRange(sector3Times) }
+          }}
         />
       </div>
     );
   };
-
-  useEffect(() => {
-    if (sessionKey && meetingKey) {
-      fetchDriverColors();
-    }
-  }, [sessionKey, meetingKey, fetchDriverColors]);
 
   return (
     <div className="chart-box" style={{ height: '100%', width: '100%', border: '1px solid #ccc', padding: '20px', borderRadius: '10px' }}>
@@ -175,6 +199,7 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
         </select>
       </div>
 
+      {/* Mini Buttons for driver selection */}
       <div className="mini-buttons-container">
         {drivers.map((driver) => (
           <button
@@ -191,7 +216,7 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
         ))}
       </div>
 
-      {/* Render bar charts of sector analysis */}
+      {/* Render bar charts */}
       <div className="charts-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
         {renderBarCharts()}
         
