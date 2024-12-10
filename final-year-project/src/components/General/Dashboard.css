@@ -30,8 +30,8 @@
 }
 
 .meeting-title {
-  font-size: 2rem; /* Adjust size as necessary */
+  font-size: 2rem; 
   font-weight: bold;
-  margin-bottom: 20px; /* Add some space below the title */
-  text-align: center; /* Center the title */
+  margin-bottom: 20px; 
+  text-align: center;
 }

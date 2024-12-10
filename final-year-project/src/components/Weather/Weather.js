@@ -44,26 +44,17 @@ function Weather({ meetingKey, sessionKey }) {
         <>
           <h3>Race Weather Conditions</h3>
           <div className="weather-info">
-            <div className="weather-item">
-              <span>Temperature: {weatherData.track_temperature}°C</span>
-            </div>
-            <div className="weather-item">
-              <span>Wind Speed: {weatherData.wind_speed} km/h</span>
-            </div>
-            <div className="weather-item">
-              <span>Wind Direction: {weatherData.wind_direction}°</span>
-            </div>
-            <div className="weather-item">
-              <span>Condition: {getWeatherIcon(weatherData.rainfall)}</span>
-              
-            </div>
+            <div className="weather-item">Temperature: {weatherData.track_temperature}°C</div>
+            <div className="weather-item">Wind Speed: {weatherData.wind_speed} km/h</div>
+            <div className="weather-item">Wind Direction: {weatherData.wind_direction}°</div>
+            <div className="weather-item">Condition: {getWeatherIcon(weatherData.rainfall)}</div>
           </div>
         </>
       ) : (
         <p>Loading weather data...</p>
       )}
     </div>
-  );
+  );  
 }
 
 export default Weather;

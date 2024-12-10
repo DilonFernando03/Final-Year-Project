@@ -188,7 +188,7 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
       <h2>{formatDriverName(primaryDriver)} Lap Analysis</h2>
 
       <div style={{ marginBottom: '20px' }}>
-        <label htmlFor="lap">Select a Lap:</label>
+        <label htmlFor="lap"></label>
         <select className="common-dropdown" onChange={(e) => onLapChange(e.target.value)} value={lap}>
           <option value="">Select a Lap</option>
           {availableLaps.map((lap, index) => (

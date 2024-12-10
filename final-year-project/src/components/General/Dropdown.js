@@ -1,5 +1,4 @@
-// Dropdown.js
-
+import './Dropdown.css';
 import React from 'react';
 
 
@@ -12,7 +11,8 @@ function RaceDropdown({ races, onRaceChange }) {
 
   return (
     <div className="dropdown-container">
-      <label htmlFor="race">Select a Race:</label>
+      <label htmlFor="race"></label>
+      <i class="fa-solid fa-flag-checkered"></i>
       <select className="common-dropdown" onChange={handleChange}>
         <option value="">Select a Race</option>
         {races.map((race, index) => (
@@ -35,7 +35,8 @@ function YearDropdown({ onYearChange }) {
 
   return (
     <div className="dropdown-container">
-      <label htmlFor="year">Select a Year:</label>
+      <label htmlFor="year"></label>
+      <i class="fa-solid fa-calendar-days"></i>
       <select className="common-dropdown" onChange={handleChange}>
         <option value="">Select a Year</option>
         {years.map((year, index) => (
@@ -56,7 +57,8 @@ function DriverDropdown({ drivers, onDriverChange }) {
 
   return (
     <div className="dropdown-container">
-      <label htmlFor="driver">Select a Driver:</label>
+      <label htmlFor="driver"></label>
+      <i className="fa-solid fa-car-side dropdown-icon"></i>
       <select className="common-dropdown" onChange={handleChange}>
         <option value="">Select a Driver</option>
         {drivers.map((driver, index) => (
@@ -77,7 +79,7 @@ function LapDropdown({ laps, onLapChange }) {
 
   return (
     <div className="dropdown-container">
-      <label htmlFor="lap">Select a Lap:</label>
+      <label htmlFor="lap"></label>
       <select className="common-dropdown" onChange={handleChange}>
         <option value="">Select a Lap</option>
         {laps.map((lap, index) => (

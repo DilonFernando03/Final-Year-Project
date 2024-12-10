@@ -5,6 +5,7 @@ import SingleLapCharts from '../Graphs/SingleLapCharts/SingleLapCharts';
 import Weather from '../Weather/Weather';
 import TopDrivers from '../Podium/TopThree';
 import './Dashboard.css';
+import Stints from '../Graphs/Stints/stints';
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
@@ -164,10 +165,9 @@ function Dashboard() {
       {race && primaryDriver && (
         <div className="info-section">
           <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
-          <TopDrivers meetingKey={meetingKey} sessionKey={sessionKey} />
+          <TopDrivers year={year} raceName={race} />
         </div>
       )}
-
       {primaryDriver && (
         <div className="driver-image-wrapper" style={{ backgroundColor: driverColour }}>
           {driverImage && <img src={driverImage} alt={`${primaryDriver}`} className="driver-image" />}
@@ -190,7 +190,10 @@ function Dashboard() {
                 availableLaps={availableLaps}
               />
             </div>
-          </>
+            <div className="chart">
+              <Stints sessionKey={sessionKey} meetingKey={meetingKey} primaryDriver={primaryDriver}/>
+            </div>
+            </>
         )}
       </div>
     </div>
