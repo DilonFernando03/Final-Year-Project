@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { YearDropdown, RaceDropdown, DriverDropdown } from './Dropdown';
-import LineChart from '../Graphs/LineChart/LineChart_';
-import SingleLapCharts from '../Graphs/SingleLapCharts/SingleLapCharts';
+import CombinedCharts from '../Graphs/CombinedCharts/combinedCharts';
 import Weather from '../Weather/Weather';
 import TopDrivers from '../Podium/TopThree';
 import './Dashboard.css';
 import Stints from '../Graphs/Stints/stints';
+import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
@@ -76,6 +76,7 @@ function Dashboard() {
       fetchDriverDetails();
     }
   }, [primaryDriver]);
+
 
   // Fetch laps when sessionKey and meetingKey are available
   useEffect(() => {
@@ -151,53 +152,86 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Display the meeting official name */}
-      {meetingOfficialName && (
-        <h1 className="meeting-title">{meetingOfficialName}</h1>
-      )}
-      <div className="dropdown-row">
-        <YearDropdown onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} label="Year: " />
-        <RaceDropdown races={availableRaces} onRaceChange={setRace} label="Race: " disabled={!year} />
-        <DriverDropdown drivers={drivers} onDriverChange={setPrimaryDriver} label="Primary Driver:" disabled={!year || !race} />
-      </div>
-
-      {/* Wrap Weather and TopDrivers in a new container */}
-      {race && primaryDriver && (
-        <div className="info-section">
-          <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
-          <TopDrivers year={year} raceName={race} />
-        </div>
-      )}
-      {primaryDriver && (
-        <div className="driver-image-wrapper" style={{ backgroundColor: driverColour }}>
-          {driverImage && <img src={driverImage} alt={`${primaryDriver}`} className="driver-image" />}
-        </div>
-      )}
-
-      <div className="chart-container">
-        {primaryDriver && sessionKey && meetingKey && (
-          <>
-            <div className="chart">
-              <LineChart primaryDriver={primaryDriver} sessionKey={sessionKey} meetingKey={meetingKey} />
-            </div>
-            <div className="chart">
-              <SingleLapCharts
-                primaryDriver={primaryDriver}
-                lap={lap}
-                onLapChange={setLap}
-                sessionKey={sessionKey}
-                meetingKey={meetingKey}
-                availableLaps={availableLaps}
-              />
-            </div>
-            <div className="chart">
-              <Stints sessionKey={sessionKey} meetingKey={meetingKey} primaryDriver={primaryDriver}/>
-            </div>
-            </>
+      {/* Header Section */}
+      <header>
+        {meetingOfficialName && (
+          <h1 className="meeting-title">{meetingOfficialName}</h1>
         )}
-      </div>
+        
+        <div className="controls-row">
+          <YearDropdown 
+            onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
+          />
+          <RaceDropdown 
+            races={availableRaces} 
+            onRaceChange={setRace} 
+            disabled={!year} 
+          />
+          <DriverDropdown 
+            drivers={drivers} 
+            onDriverChange={setPrimaryDriver} 
+            disabled={!year || !race} 
+          />
+        </div>
+      </header>
+
+      {/* Main Dashboard Grid */}
+      {race && primaryDriver && (
+        <div className="dashboard-grid">
+          {/* Info Panel */}
+          <aside className="info-panel">
+            <div className="dashboard-card">
+              <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
+            </div>
+            <div className="dashboard-card">
+              <TopDrivers year={year} raceName={race} />
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <main className="main-content">
+            {/* Driver Header */}
+            {driverImage && (
+            <div 
+              className="driver-header"
+              style={{ borderLeft: `4px solid ${driverColour}` }}
+            >
+              <DriverInfoTipTool 
+                driverImage={driverImage}
+                driverName={primaryDriver}
+              />
+              <h2 className="driver-name">{primaryDriver}</h2>
+            </div>
+          )}
+
+            {/* Charts */}
+            {primaryDriver && sessionKey && meetingKey && (
+              <div className="charts-grid">
+                <div className="dashboard-card combined-charts">
+                <CombinedCharts 
+                  primaryDriver={primaryDriver}
+                  sessionKey={sessionKey}
+                  meetingKey={meetingKey}
+                  lap={lap}
+                  availableLaps={availableLaps}
+                  onLapChange={setLap}
+                  />
+                </div>
+                
+                <div className="dashboard-card stints-card">
+                  <Stints 
+                    sessionKey={sessionKey} 
+                    meetingKey={meetingKey} 
+                    primaryDriver={primaryDriver}
+                  />
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      )}
     </div>
   );
-}
+};
 
 export default Dashboard;

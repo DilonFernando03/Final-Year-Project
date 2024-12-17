@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import ApexCharts from 'apexcharts';
+import Plot from 'react-plotly.js';
+import './stints.css';
 
 function Stints({ sessionKey, meetingKey, primaryDriver }) {
   const [driverStints, setDriverStints] = useState([]);
-  const [chart, setChart] = useState(null);
 
   const getDriverNumberFromAPI = useCallback(async (driverName) => {
     try {
@@ -47,78 +47,136 @@ function Stints({ sessionKey, meetingKey, primaryDriver }) {
     fetchDriverStints();
   }, [sessionKey, meetingKey, primaryDriver, getDriverNumberFromAPI]);
 
-  useEffect(() => {
-    if (driverStints.length > 0) {
-      const seriesData = driverStints.map((stint, index) => {
-        // Add letter for the tire compound
-        const compoundLetter = stint.compound === 'SOFT' ? 'S' :
-                               stint.compound === 'MEDIUM' ? 'M' :
-                               stint.compound === 'HARD' ? 'H' :
-                               stint.compound === 'WET' ? 'W' :
-                               stint.compound === 'INTERMEDIATE' ? 'I' :
-                               'U'; // Unknown or other tires
-        return {
-          x: `Stint ${index + 1}`,
-          y: [stint.lap_start, stint.lap_end],
-          fillColor: stint.compound === 'SOFT' ? '#FF4D4D' :
-                     stint.compound === 'MEDIUM' ? '#FFD700' :
-                     stint.compound === 'HARD' ? '#808080' :
-                     stint.compound === 'WET' ? '#00008B' : 
-                     stint.compound === 'INTERMEDIATE' ? '#006400' : '#B0B0B0', 
-          label: compoundLetter, 
-        };
-      });
+  const renderPlot = () => {
+    if (driverStints.length === 0) return null;
 
-      const options = {
-        series: [{ data: seriesData }],
-        chart: {
-          height: 300,
-          type: 'rangeBar',
+    const maxLap = Math.max(...driverStints.map(stint => stint.lap_end));
+    const xAxisMax = Math.ceil(maxLap * 1.05);
+
+    const data = driverStints.map((stint, index) => {
+      const compoundLetter = stint.compound === 'SOFT' ? 'S' :
+                           stint.compound === 'MEDIUM' ? 'M' :
+                           stint.compound === 'HARD' ? 'H' :
+                           stint.compound === 'WET' ? 'W' :
+                           stint.compound === 'INTERMEDIATE' ? 'I' :
+                           'U';
+
+      const color = stint.compound === 'SOFT' ? '#FF4D4D' :
+                   stint.compound === 'MEDIUM' ? '#FFD700' :
+                   stint.compound === 'HARD' ? '#808080' :
+                   stint.compound === 'WET' ? '#00008B' : 
+                   stint.compound === 'INTERMEDIATE' ? '#006400' : '#B0B0B0';
+
+      // Create bar and text traces
+      const bar = {
+        type: 'scatter',
+        mode: 'lines',
+        x: [stint.lap_start, stint.lap_end],
+        y: [(index + 1), (index + 1)],
+        line: {
+          color: color,
+          width: 20
         },
-        plotOptions: {
-          bar: {
-            horizontal: true,
-            dataLabels: {
-              position: 'center', // Center the label
-            },
-          },
-        },
-        colors: ['#FF4D4D', '#FFD700', '#808080', '#0000FF', '#00FF00', '#B0B0B0'],
-        title: {
-          text: `Pit Strategy for ${primaryDriver}`,
-          align: 'center',
-        },
-        xaxis: {
-          title: { text: 'Lap Numbers' },
-        },
-        yaxis: {
-          title: { text: 'Stints' },
-        },
-        dataLabels: {
-          enabled: true,
-          style: {
-            fontSize: '14px',
-            fontWeight: 'bold',
-            colors: ['#ffffff'], // Ensure good contrast with bar colors
-          },
-          formatter: (val, opts) => {
-            return opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex].label;
-          },
-        },
+        hoverinfo: 'text',
+        hovertext: `Stint ${index + 1}<br>Laps: ${stint.lap_start} - ${stint.lap_end}<br>Compound: ${stint.compound}`,
+        showlegend: false
       };
 
-      // Destroy previous chart if exists
-      if (chart) {
-        chart.destroy();
+      const text = {
+        type: 'scatter',
+        mode: 'text',
+        x: [(stint.lap_start + stint.lap_end) / 2], // Center position
+        y: [index + 1],
+        text: [compoundLetter],
+        textfont: {
+          size: 14,
+          color: 'white',
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        },
+        hoverinfo: 'none',
+        showlegend: false
+      };
+
+      return [bar, text];
+    }).flat();
+
+    const layout = {
+      title: {
+        text: `Pit Strategy for ${primaryDriver}`,
+        font: {
+          size: 16,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        }
+      },
+      xaxis: {
+        title: {
+          text: 'Lap Numbers',
+          font: {
+            size: 12,
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          }
+        },
+        range: [0, xAxisMax],
+        showgrid: true,
+        gridcolor: '#E5E5E5',
+        zeroline: false,
+        dtick: 9
+      },
+      yaxis: {
+        title: {
+          text: 'Stints',
+          font: {
+            size: 12,
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          },
+          standoff: 20
+        },
+        ticktext: driverStints.map((_, i) => `Stint ${i + 1}`),
+        tickvals: driverStints.map((_, i) => i + 1),
+        range: [0.5, driverStints.length + 0.5],
+        showgrid: true,
+        gridcolor: '#E5E5E5',
+        zeroline: false
+      },
+      plot_bgcolor: 'white',
+      paper_bgcolor: 'white',
+      height: 200,
+      margin: {
+        l: 80,
+        r: 20,
+        t: 40,
+        b: 40
+      },
+      showlegend: false,
+      hoverlabel: {
+        bgcolor: 'white',
+        font: { 
+          size: 12,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        }
       }
+    };
 
-      const newChart = new ApexCharts(document.querySelector("#chart"), options);
-      newChart.render();
-      setChart(newChart);
-    }
-  }, [driverStints]);
+    const config = {
+      displayModeBar: false,
+      responsive: true
+    };
 
-  return <div id="chart" style={{ width: '400%' }} />; // Full width container
+    return (
+      <Plot
+        data={data}
+        layout={layout}
+        config={config}
+        className="stint-plot"
+      />
+    );
+  };
+
+  return (
+    <div className="stints-container">
+      {renderPlot()}
+    </div>
+  );
 }
 
 export default Stints;

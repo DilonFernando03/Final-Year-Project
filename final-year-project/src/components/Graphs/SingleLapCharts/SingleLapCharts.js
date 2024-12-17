@@ -3,13 +3,20 @@ import Plot from 'react-plotly.js';
 import Speedometer from './Speedometer';
 import './SingleLapCharts.css';
 
-function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, availableLaps, onLapChange }) {
+function SingleLapCharts({ 
+  primaryDriver, 
+  sessionKey, 
+  meetingKey, 
+  lap, 
+  availableLaps, 
+  onLapChange,
+  selectedDrivers = [],
+  driverColors = {},
+  externalButtons = false
+}) {
   const [primaryDriverData, setPrimaryDriverData] = useState([]);
-  const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [selectedDriversData, setSelectedDriversData] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [driverColors, setDriverColors] = useState({});
-  const [driverInfoMap, setDriverInfoMap] = useState({}); // Initialize driverInfoMap here
+  const [driverInfoMap, setDriverInfoMap] = useState({});
   const [topSpeed, setTopSpeed] = useState(0);
 
   const formatDriverName = (name) => {
@@ -20,31 +27,18 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
       .join(' ');
   };
 
-  const toggleDriverSelection = (driver) => {
-    setSelectedDrivers((prevSelected) =>
-      prevSelected.includes(driver)
-        ? prevSelected.filter(d => d !== driver)
-        : [...prevSelected, driver]
-    );
-  };
-
   // Fetch driver colors, names, and populate driverInfoMap
   const fetchDriverColors = useCallback(async () => {
     try {
       const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
       const data = await response.json();
 
-      const colors = {};
       const infoMap = {};
-
       data.forEach((driver) => {
         const color = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
-        colors[driver.full_name] = color;
         infoMap[driver.driver_number] = { name: driver.full_name, color };
       });
 
-      setDrivers(data.map(driver => driver.full_name));
-      setDriverColors(colors);
       setDriverInfoMap(infoMap);
     } catch (error) {
       console.error('Error fetching driver colors:', error);
@@ -127,16 +121,35 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
     const sector3Times = allData.map((d) => d.sector3);
     const colors = allData.map((d) => driverInfoMap[d.driver_num]?.color);
 
-    // Calculate y-axis ranges to zoom into the relevant sector times
     const getAxisRange = (sectorTimes) => {
       const min = Math.min(...sectorTimes);
       const max = Math.max(...sectorTimes);
-      const padding = (max - min) * 0.1; // Add a 10% padding
+      const padding = (max - min) * 0.1;
       return [min - padding, max + padding];
     };
 
+    const commonLayout = {
+      width: 180, 
+      height: 300,
+      margin: {    
+        l: 40,
+        r: 10,
+        t: 30,
+        b: 40
+      },
+      font: {
+        size: 10 
+      },
+      yaxis: {
+        tickfont: { size: 9 }
+      },
+      xaxis: {
+        tickfont: { size: 9 }
+      }
+    };
+
     return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
+      <div className="sector-charts">
         <Plot
           data={[{
             x: driverNames,
@@ -145,10 +158,9 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             marker: { color: colors }
           }]}
           layout={{ 
-            title: 'Sector 1 Times', 
-            width: 250, 
-            height: 400, 
-            yaxis: { range: getAxisRange(sector1Times) }
+            ...commonLayout,
+            title: { text: 'Sector 1', font: { size: 12 } },
+            yaxis: { ...commonLayout.yaxis, range: getAxisRange(sector1Times) }
           }}
         />
         <Plot
@@ -159,10 +171,9 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             marker: { color: colors }
           }]}
           layout={{ 
-            title: 'Sector 2 Times', 
-            width: 250, 
-            height: 400, 
-            yaxis: { range: getAxisRange(sector2Times) }
+            ...commonLayout,
+            title: { text: 'Sector 2', font: { size: 12 } },
+            yaxis: { ...commonLayout.yaxis, range: getAxisRange(sector2Times) }
           }}
         />
         <Plot
@@ -173,10 +184,9 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
             marker: { color: colors }
           }]}
           layout={{ 
-            title: 'Sector 3 Times', 
-            width: 250, 
-            height: 400, 
-            yaxis: { range: getAxisRange(sector3Times) }
+            ...commonLayout,
+            title: { text: 'Sector 3', font: { size: 12 } },
+            yaxis: { ...commonLayout.yaxis, range: getAxisRange(sector3Times) }
           }}
         />
       </div>
@@ -184,11 +194,10 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
   };
 
   return (
-    <div className="chart-box" style={{ height: '100%', width: '100%', border: '1px solid #ccc', padding: '20px', borderRadius: '10px' }}>
+    <div className="chart-box">
       <h2>{formatDriverName(primaryDriver)} Lap Analysis</h2>
-
+  
       <div style={{ marginBottom: '20px' }}>
-        <label htmlFor="lap"></label>
         <select className="common-dropdown" onChange={(e) => onLapChange(e.target.value)} value={lap}>
           <option value="">Select a Lap</option>
           {availableLaps.map((lap, index) => (
@@ -198,34 +207,10 @@ function SingleLapCharts({ primaryDriver, sessionKey, meetingKey, lap, available
           ))}
         </select>
       </div>
-
-      {/* Mini Buttons for driver selection */}
-      <div className="mini-buttons-container">
-        {drivers.map((driver) => (
-          <button
-            key={driver}
-            className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
-            style={{
-              backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'lightgray',
-              color: selectedDrivers.includes(driver) ? 'white' : 'black'
-            }}
-            onClick={() => toggleDriverSelection(driver)}
-          >
-            {driver}
-          </button>
-        ))}
-      </div>
-
-      {/* Render bar charts */}
-      <div className="charts-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+  
+      <div className="charts-container">
         {renderBarCharts()}
-        
-        {/* Conditionally render Speedometer */}
-        {lap && (
-          <div className="speedometer-container" style={{ marginLeft: '10px' }}>  
-            <Speedometer topSpeed={topSpeed} />
-          </div>
-        )}
+        <h2>Lap number {lap}</h2>
       </div>
     </div>
   );

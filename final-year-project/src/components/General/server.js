@@ -34,8 +34,8 @@ app.get('/api/top-three', async (req, res) => {
         
             // Extract the driver number (without the hash) and the name
             const numberMatch = nameWithNumber.match(/^#(\d+)\s*/);
-            const number = numberMatch ? numberMatch[1] : null; // Extract the number
-            const name = nameWithNumber.replace(/^#\d+\s*/, ''); // Remove the number from the name
+            const number = numberMatch ? numberMatch[1] : null;
+            const name = nameWithNumber.replace(/^#\d+\s*/, '');
         
             topThree.push({ position, name, team, time, number });
         });
@@ -44,6 +44,54 @@ app.get('/api/top-three', async (req, res) => {
     } catch (error) {
         console.error('Error fetching data:', error.message);
         res.status(500).json({ error: 'Failed to fetch race results.' });
+    }
+});
+
+// Driver details endpoint
+app.get('/api/driver-details', async (req, res) => {
+    const { driverName } = req.query;
+
+    if (!driverName) {
+        return res.status(400).json({ error: 'Driver name is required.' });
+    }
+
+    try {
+        const driverSlug = driverName.toLowerCase().replace(/\s+/g, '-');
+        const url = `https://www.formula1.com/en/drivers/${driverSlug}.html`;
+
+        console.log(`Fetching driver data from ${url}`);
+        const { data } = await axios.get(url);
+        const $ = cheerio.load(data);
+
+        // Target the specific grid container
+        const statsGrid = $('.grid.gap-x-normal.gap-y-xs.f1-grid');
+        const stats = {};
+
+        // Extract all dt/dd pairs from the grid
+        statsGrid.find('dt').each((index, element) => {
+            const label = $(element).text().trim();
+            const value = $(element).next('dd').text().trim();
+            
+            // Clean up the labels to use as keys
+            const key = label.toLowerCase()
+                           .replace(/^team$/, 'team')
+                           .replace(/^country$/, 'country')
+                           .replace(/^podiums$/, 'podiums')
+                           .replace(/^points$/, 'points')
+                           .replace(/^world championships$/, 'worldChampionships')
+                           .replace(/^highest race finish$/, 'highestFinish')
+                           .replace(/^highest grid position$/, 'highestGrid')
+                           .replace(/^date of birth$/, 'dateOfBirth')
+                           .replace(/^place of birth$/, 'birthplace')
+                           .replace(/^grands prix entered$/, 'grandsPrixEntered');
+
+            stats[key] = value;
+        });
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching driver details:', error.message);
+        res.status(500).json({ error: 'Failed to fetch driver details.' });
     }
 });
 

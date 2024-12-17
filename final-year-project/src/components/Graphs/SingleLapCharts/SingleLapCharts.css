@@ -1,23 +1,70 @@
 .mini-buttons-container {
-    margin-top: 10px;
-  }
-  
-  .mini-button {
-    margin: 5px;
-    padding: 5px 10px;
-    background-color: #ddd;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
-  .mini-button.selected {
-    background-color: #007bff;
-    color: white;
-  }
+  margin-top: 10px;
+}
 
-  .speedometer-container {
-    display:block;
-    align-items: center; 
-    justify-content: center;
-  }
+.mini-button {
+  margin: 5px;
+  padding: 5px 10px;
+  background-color: #ddd;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.mini-button.selected {
+  background-color: #007bff;
+  color: white;
+}
+
+.charts-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.sector-charts {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.sector-charts::-webkit-scrollbar {
+  height: 4px;
+}
+
+.sector-charts::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sector-charts::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 2px;
+}
+
+.sector-charts::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.chart-box {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.chart-box h2 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
+  padding: 0.25rem;
+  border-bottom: 1px solid #eee;
+}
+
+.common-dropdown {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+}
