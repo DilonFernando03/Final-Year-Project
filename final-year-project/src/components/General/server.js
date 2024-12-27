@@ -95,6 +95,64 @@ app.get('/api/driver-details', async (req, res) => {
     }
 });
 
+// Winner predictor season schedule endpoint
+app.get('/api/next-race', async (req, res) => {
+    try {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        console.log('Current year:', currentYear);
+        
+        console.log('Attempting to fetch current season races...');
+        let nextRace = await fetchNextRaceFromCalendar(currentYear);
+        console.log('Current season next race:', nextRace);
+        
+        if (!nextRace) {
+            console.log('No races found in current season, checking next year...');
+            nextRace = await fetchNextRaceFromCalendar(currentYear + 1);
+            console.log('Next season race:', nextRace);
+        }
+ 
+        if (!nextRace) {
+            console.log('No upcoming races found in either season');
+            return res.status(404).json({ error: 'No upcoming races found' });
+        }
+ 
+        console.log('Returning next race:', nextRace);
+        res.json(nextRace);
+    } catch (error) {
+        console.error('Error in /api/next-race:', error);
+        res.status(500).json({ error: 'Failed to fetch next race', details: error.message });
+    }
+ });
+ 
+ async function fetchNextRaceFromCalendar(season) {
+    const url = `https://racingnews365.com/formula-1-calendar-${season}`;
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
+    
+    const races = [];
+    $('.table__text--date').each((_, element) => {
+        const dateText = $(element).find('.table__text--primary').text().trim();
+        const row = $(element).closest('tr');
+        const raceName = row.find('.table__text--primary strong').text().trim();
+        const trackName = row.find('.table__text--secondary').first().text().trim();
+        
+        if (dateText && raceName) {
+            const [day, month] = dateText.split(' ');
+            const date = new Date(`${month} ${day}, ${season}`);
+            races.push({
+                date,
+                name: raceName,
+                track: trackName,
+                season
+            });
+        }
+    });
+
+    const now = new Date();
+    return races.find(race => race.date > now);
+}
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

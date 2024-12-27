@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { YearDropdown, RaceDropdown, DriverDropdown } from './Dropdown';
 import CombinedCharts from '../Graphs/CombinedCharts/combinedCharts';
 import Weather from '../Weather/Weather';
 import TopDrivers from '../Podium/TopThree';
 import './Dashboard.css';
+import WinnerPredictor from '../Predictor/winnerPredictor';
 import Stints from '../Graphs/Stints/stints';
 import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
+import PositionTimeline from '../Graphs/PositionTimeline/positionTimeline';
+import DriverRatings from '../Graphs/RadarChart/driverRatings';
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
+  const [driverNumber, setDriverNumber] = useState('');
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
   const [lap, setLap] = useState(null);
@@ -19,7 +23,10 @@ function Dashboard() {
   const [meetingKey, setMeetingKey] = useState(null);
   const [driverImage, setDriverImage] = useState('');
   const [driverColour, setDriverColour] = useState('');
-  const [meetingOfficialName, setMeetingOfficialName] = useState(''); 
+  const [meetingOfficialName, setMeetingOfficialName] = useState('');
+  
+  // Ref for scrolling to predictor section
+  const predictorRef = useRef(null);
 
   // Function to reset dashboard when year changes
   const resetDashboard = () => {
@@ -33,6 +40,7 @@ function Dashboard() {
     setMeetingKey(null);
     setDriverImage('');
     setDriverColour('');
+    setDriverNumber('');
     setMeetingOfficialName('');
   };
 
@@ -62,13 +70,14 @@ function Dashboard() {
           const data = await response.json();
           const driverImageUrl = data[0].headshot_url;
           let driverColour = data[0].team_colour;
-
+          let driverNumber = data[0].driver_number;
           if (!driverColour.startsWith('#')) {
             driverColour = `#${driverColour}`;
           }
 
           setDriverImage(driverImageUrl);
           setDriverColour(driverColour);
+          setDriverNumber(driverNumber);
         } catch (error) {
           console.error('Error fetching driver details:', error);
         }
@@ -76,7 +85,6 @@ function Dashboard() {
       fetchDriverDetails();
     }
   }, [primaryDriver]);
-
 
   // Fetch laps when sessionKey and meetingKey are available
   useEffect(() => {
@@ -150,8 +158,19 @@ function Dashboard() {
     fetchMeetingOfficialName();
   }, [meetingKey, race]);
 
+  const scrollToPredictor = () => {
+    predictorRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="dashboard-container">
+      {/* Header */}
+      <div className="bg-black w-full py-4 px-8 text-white flex items-center justify-center">
+        <h1 className="text-3xl font-bold text-white">
+          F1 Data Dashboard<i className="fa-solid fa-flag-checkered text-white text-3xl"></i>
+        </h1>
+      </div>
+
       {/* Header Section */}
       <header>
         {meetingOfficialName && (
@@ -183,7 +202,7 @@ function Dashboard() {
             <div className="dashboard-card">
               <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
             </div>
-            <div className="dashboard-card">
+            <div className="dashboard-card" style={{height:'200%'}}>
               <TopDrivers year={year} raceName={race} />
             </div>
           </aside>
@@ -192,46 +211,60 @@ function Dashboard() {
           <main className="main-content">
             {/* Driver Header */}
             {driverImage && (
-            <div 
-              className="driver-header"
-              style={{ borderLeft: `4px solid ${driverColour}` }}
-            >
-              <DriverInfoTipTool 
-                driverImage={driverImage}
-                driverName={primaryDriver}
-              />
-              <h2 className="driver-name">{primaryDriver}</h2>
-            </div>
-          )}
+              <div 
+                className="driver-header"
+                style={{ borderLeft: `4px solid ${driverColour}` }}
+              >
+                <DriverInfoTipTool 
+                  driverImage={driverImage}
+                  driverName={primaryDriver}
+                />
+                <h2 className="driver-name">{primaryDriver}</h2>
+              </div>
+            )}
 
             {/* Charts */}
             {primaryDriver && sessionKey && meetingKey && (
               <div className="charts-grid">
                 <div className="dashboard-card combined-charts">
-                <CombinedCharts 
-                  primaryDriver={primaryDriver}
-                  sessionKey={sessionKey}
-                  meetingKey={meetingKey}
-                  lap={lap}
-                  availableLaps={availableLaps}
-                  onLapChange={setLap}
+                  <CombinedCharts 
+                    primaryDriver={primaryDriver}
+                    sessionKey={sessionKey}
+                    meetingKey={meetingKey}
+                    lap={lap}
+                    availableLaps={availableLaps}
+                    onLapChange={setLap}
                   />
                 </div>
                 
-                <div className="dashboard-card stints-card">
-                  <Stints 
-                    sessionKey={sessionKey} 
-                    meetingKey={meetingKey} 
-                    primaryDriver={primaryDriver}
+                {/* Stints and Ratings Row */}
+                <div className="charts-row">
+                  <div className="dashboard-card charts-card">
+                    <Stints 
+                      sessionKey={sessionKey} 
+                      meetingKey={meetingKey} 
+                      primaryDriver={primaryDriver}
+                    />
+                  </div>
+                  <div className="dashboard-card charts-card">
+                    <DriverRatings driverNumber={driverNumber} />
+                  </div>
+                </div>
+
+                {/* Winner Predictor */}
+                <div className="dashboard-card predictor-card" ref={predictorRef}>
+                  <WinnerPredictor 
+                    sessionKey={sessionKey}
+                    meetingKey={meetingKey}
                   />
                 </div>
               </div>
             )}
-          </main>
-        </div>
-      )}
-    </div>
-  );
-};
+                      </main>
+                    </div>
+                  )}
+                </div>
+              );
+}
 
 export default Dashboard;

@@ -1,15 +1,40 @@
-/* Base Layout */
+/* Base Container Layout
+-------------------------------------------------- */
 .dashboard-container {
   height: 100vh;
   width: 100vw;
   background-color: #f5f5f5;
-  padding: 0.5rem;
+  padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* Header Components */
+/* Header Styles
+-------------------------------------------------- */
+.bg-black {
+  background-color: black;
+  margin: 0;
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.bg-black h1 {
+  color: white !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.bg-black i {
+  color: white !important;
+}
+
+/* Meeting Title & Controls
+-------------------------------------------------- */
+header {
+  padding: 0.5rem;
+}
+
 .meeting-title {
   font-size: 1.25rem;
   font-weight: bold;
@@ -29,7 +54,8 @@
   flex-wrap: wrap;
 }
 
-/* Dropdown Styling */
+/* Dropdown Components
+-------------------------------------------------- */
 .dropdown-container {
   position: relative;
   width: 150px;
@@ -45,14 +71,40 @@
   border-radius: 0.25rem;
 }
 
-/* Main Grid Layout */
+/* Main Dashboard Grid Layout
+-------------------------------------------------- */
 .dashboard-grid {
   display: flex;
   gap: 0.5rem;
   flex: 1;
   min-height: 0;
+  padding: 0.5rem;
 }
 
+/* Info Panel Styles
+-------------------------------------------------- */
+.info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 300px;
+  min-width: 300px;
+  overflow-y: auto;
+}
+
+/* Card Components
+-------------------------------------------------- */
+.dashboard-card {
+  background-color: rgb(255, 255, 255);
+  border-radius: 0.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem;
+  height: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* Main Content Area
+-------------------------------------------------- */
 .main-content {
   flex: 1;
   display: flex;
@@ -62,26 +114,8 @@
   min-width: 0;
 }
 
-/* Info Panel */
-.info-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 250px;
-  min-width: 250px;
-  overflow-y: auto;
-}
-
-/* Card Components */
-.dashboard-card {
-  background-color: white;
-  border-radius: 0.25rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  padding: 0.5rem;
-  height: 100%;
-}
-
-/* Driver Header */
+/* Driver Header
+-------------------------------------------------- */
 .driver-header {
   display: flex;
   align-items: center;
@@ -93,26 +127,14 @@
   height: 50px;
 }
 
-.driver-image-wrapper {
-  height: 40px;
-  width: 40px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-.driver-image {
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-}
-
 .driver-name {
   font-size: 1rem;
   font-weight: bold;
   color: #333;
 }
 
-/* Charts Layout */
+/* Charts Layout
+-------------------------------------------------- */
 .charts-grid {
   display: flex;
   flex-direction: column;
@@ -131,11 +153,34 @@
   padding: 0.25rem;
 }
 
-.stints-card {
+/* New Stints and Ratings Layout
+-------------------------------------------------- */
+.stints-ratings-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.stints-section,
+.ratings-section {
   flex: 1;
-  min-width: 300px;
-  max-width: 600px;
+  min-width: 0;
   padding: 0.25rem;
+}
+
+.containing-box {
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 1rem;
+  background-color: #ffffff;
+  border-radius: 0.375rem;
+}
+
+.predictor-card {
+  width: 100%;
+  padding: 0.25rem;
+  margin-top: 0.5rem;
+  min-height: 200px;
 }
 
 .chart-wrapper {
@@ -144,64 +189,22 @@
   width: 100%;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    flex-direction: column;
-  }
-
-  .info-panel {
-    width: 100%;
-    flex-direction: row;
-    height: auto;
-  }
-
-  .info-panel > div {
-    flex: 1;
-  }
-
-  .charts-row {
-    flex-direction: column;
-  }
-
-  .stints-card {
-    max-width: none;
-  }
-
-  .combined-charts,
-  .stints-card {
-    min-height: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .info-panel {
-    flex-direction: column;
-  }
-}
-
-/* Driver Header */
-.driver-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background-color: white;
-  border-radius: 0.25rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  height: 50px;
-}
-
-/* Tooltip Container */
+/* Driver Image & Tooltip Styles
+-------------------------------------------------- */
 .driver-image-wrapper {
   position: relative;
   height: 40px;
   width: 40px;
   border-radius: 50%;
-  overflow: visible; /* Changed from hidden to allow tooltip visibility */
+  overflow: visible;
 }
 
-/* Tooltip Styles */
+.driver-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
 .driver-tooltip {
   visibility: hidden;
   position: absolute;
@@ -219,7 +222,6 @@
   width: max-content;
 }
 
-/* Tooltip Arrow */
 .driver-tooltip::before {
   content: '';
   position: absolute;
@@ -231,12 +233,10 @@
   border-color: transparent transparent rgba(0, 0, 0, 0.9) transparent;
 }
 
-/* Show tooltip on hover */
 .driver-image-wrapper:hover .driver-tooltip {
   visibility: visible;
 }
 
-/* Tooltip Content Layout */
 .tooltip-content {
   display: grid;
   grid-template-columns: auto auto;
@@ -251,4 +251,77 @@
 .tooltip-value {
   color: white;
   text-align: left;
+}
+
+/* Responsive Design
+-------------------------------------------------- */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    flex-direction: column;
+  }
+
+  .info-panel {
+    width: 100%;
+    flex-direction: row;
+    height: auto;
+  }
+
+  .info-panel > div {
+    flex: 1;
+    min-width: 250px;
+  }
+
+  .stints-ratings-row {
+    flex-direction: column;
+  }
+
+  .stints-section,
+  .ratings-section {
+    width: 100%;
+  }
+
+  .combined-charts,
+  .containing-box {
+    min-height: 300px;
+  }
+
+  .predictor-card {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-panel {
+    flex-direction: column;
+  }
+
+  .info-panel > div {
+    width: 100%;
+  }
+}
+
+.charts-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.charts-card {
+  flex: 1;
+  min-width: 0;
+  margin: 0; 
+  display: flex;
+  flex-direction: column;
+}
+
+/* Update the responsive design */
+@media (max-width: 1024px) {
+  .charts-row {
+    flex-direction: column;
+  }
+  
+  .charts-card {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
 }
