@@ -252,7 +252,7 @@ function Dashboard() {
                 </div>
 
                 {/* Winner Predictor */}
-                <div className="dashboard-card predictor-card" ref={predictorRef}>
+                <div className="dashboard-card charts-card" ref={predictorRef}>
                   <WinnerPredictor 
                     sessionKey={sessionKey}
                     meetingKey={meetingKey}

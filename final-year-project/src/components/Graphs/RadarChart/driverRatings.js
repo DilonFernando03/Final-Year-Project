@@ -137,14 +137,6 @@ function DriverRatings({ driverNumber }) {
               family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
             }
           }
-        },
-        title: {
-          display: true,
-          text: 'Driver Ratings',
-          font: {
-            size: 16,
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-          }
         }
       }
     });
@@ -155,7 +147,7 @@ function DriverRatings({ driverNumber }) {
       {loading && <div className="loading">Loading...</div>}
       {error && <div className="error">Error: {error}</div>}
       {!loading && !error && chartData && chartOptions && (
-        <div style={{ height: '300px', width: '500px' }}>
+        <div className="ratings-content">
           <Radar data={chartData} options={chartOptions} />
         </div>
       )}
