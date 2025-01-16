@@ -1,150 +1,91 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
-
-const processPracticeData = (practiceData) => {
-  return practiceData.reduce((acc, lap) => {
-    if (!acc[lap.driver_number]) {
-      acc[lap.driver_number] = {
-        lap_times: [],
-        average_time: 0
-      };
-    }
-    acc[lap.driver_number].lap_times.push(lap.lap_time);
-    acc[lap.driver_number].average_time = 
-      acc[lap.driver_number].lap_times.reduce((a, b) => a + b, 0) / 
-      acc[lap.driver_number].lap_times.length;
-    return acc;
-  }, {});
-};
+import Predictor from '../../lib/predictor';
 
 const WinnerPredictor = () => {
   const [nextRace, setNextRace] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentDrivers, setCurrentDrivers] = useState([]);
-  const [sessionKey, setSessionKey] = useState(null);
-  const [meetingKey, setMeetingKey] = useState(null);
+  const [error, setError] = useState(null);
+  const predictor = useRef(null);
 
   useEffect(() => {
-    const fetchNextRace = async () => {
+    const initializePredictor = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/next-race');
-        const data = await response.json();
-        setNextRace(data);
+        setError(null);
+        setLoading(true);
 
-        // Fetch session and meeting keys for the current season
-        if (data?.season) {
-          const keysResponse = await fetch(
-            `https://api.openf1.org/v1/sessions?year=${data.season}&session_name=Race`
-          );
-          const keysData = await keysResponse.json();
-          if (keysData && keysData.length > 0) {
-            setSessionKey(keysData[0].session_key);
-            setMeetingKey(keysData[0].meeting_key);
-          }
+        // Fetch next race data
+        const raceResponse = await fetch('http://localhost:5000/api/next-race');
+        if (!raceResponse.ok) {
+          throw new Error(`Failed to fetch next race data: ${raceResponse.statusText}`);
         }
+        const raceData = await raceResponse.json();
+        
+        // Add circuit ID to race data
+        const enhancedRaceData = {
+          ...raceData,
+          circuitId: raceData.track.toLowerCase()
+            .replace(/\s+circuit$/i, '')
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .replace(/-+/g, '-')
+        };
+        setNextRace(enhancedRaceData);
+
+        // Fetch current drivers using race season
+        const driversResponse = await fetch(
+          `http://localhost:5000/api/current-drivers?season=${raceData.season}`
+        );
+        if (!driversResponse.ok) {
+          throw new Error(`Failed to fetch drivers: ${driversResponse.statusText}`);
+        }
+        const driversData = await driversResponse.json();
+        
+        if (!driversData || !driversData.length) {
+          throw new Error('No drivers data available');
+        }
+
+        setCurrentDrivers(driversData);
+
+        // Initialize predictor with drivers
+        predictor.current = new Predictor();
+        await predictor.current.initialize(driversData);
       } catch (error) {
-        console.error('Error fetching next race:', error);
+        console.error('Initialization error:', error);
+        setError(`Failed to initialize: ${error.message}`);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchNextRace();
+
+    initializePredictor();
   }, []);
 
-  // Fetch current drivers when session and meeting keys are available
-  useEffect(() => {
-    const fetchCurrentDrivers = async () => {
-      if (meetingKey && sessionKey) {
-        try {
-          const response = await fetch(
-            `https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`
-          );
-          const data = await response.json();
-          const driverNames = data.map(driver => driver.full_name);
-          setCurrentDrivers(driverNames);
-        } catch (error) {
-          console.error('Error fetching current drivers:', error);
-        }
-      }
-    };
-    fetchCurrentDrivers();
-  }, [meetingKey, sessionKey]);
-
-  const fetchHistoricalData = async (driverName) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/driver-details?driverName=${encodeURIComponent(driverName)}`);
-      return await response.json();
-    } catch (error) {
-      console.error(`Error fetching data for ${driverName}:`, error);
-      return null;
-    }
-  };
-
   const makePrediction = async () => {
-    console.log('Button clicked');
-    console.log('Current state:', {
-      nextRace,
-      currentDrivers,
-      sessionKey,
-      meetingKey
-    });
-
-    if (!nextRace || currentDrivers.length === 0) {
-      console.log('Prediction cancelled - missing required data:', {
-        hasNextRace: !!nextRace,
-        driversCount: currentDrivers.length
-      });
+    if (!predictor.current?.initialized || !nextRace || !currentDrivers.length) {
+      setError('Required race data is not available');
       return;
     }
     
     setLoading(true);
+    setError(null);
+    
     try {
-      // Get data for all current drivers
-      const driverStats = await Promise.all(currentDrivers.map(driver => fetchHistoricalData(driver)));
-      
-      // Calculate prediction probabilities based on historical performance
-      const predictions = driverStats
-        .map((stats, index) => {
-          if (!stats) return null;
-          
-          // Create a weighted score based on various factors
-          const championshipWeight = parseInt(stats.worldChampionships || 0) * 0.3;
-          const podiumWeight = parseInt(stats.podiums || 0) * 0.2;
-          const recentFormWeight = Math.random() * 0.3; // Replace with actual recent form calculation
-          const trackHistoryWeight = Math.random() * 0.2; // Replace with actual track history
-          
-          const totalScore = championshipWeight + podiumWeight + recentFormWeight + trackHistoryWeight;
-          
-          return {
-            driver: currentDrivers[index],
-            probability: totalScore,
-            confidence: stats.points > 200 ? 'High' : stats.points > 100 ? 'Medium' : 'Low'
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => b.probability - a.probability)
-        .slice(0, 3)
-        .map(pred => ({
-          ...pred,
-          probability: pred.probability / 2 // Normalize to reasonable percentage
-        }));
-
-      setPrediction({
-        predictions,
-        factors: {
-          track_conditions: 'Optimal',
-          historical_performance: `${(predictions[0]?.probability * 100).toFixed(1)}%`,
-          championship_form: predictions[0]?.confidence,
-          track_history: 'Strong'
-        },
-        reliability: predictions[0]?.confidence
+      const predictionResult = await predictor.current.predict({
+        nextRace,
+        weather: nextRace.weather || {}
       });
-
+      setPrediction(predictionResult);
     } catch (error) {
       console.error('Prediction error:', error);
+      setError('Failed to generate prediction. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -156,12 +97,15 @@ const WinnerPredictor = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {error && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+          
           <Button
-            onClick={() => {
-              console.log('Button clicked - initial handler');
-              makePrediction();
-            }}
-            disabled={!nextRace || loading || currentDrivers.length === 0}
+            onClick={makePrediction}
+            disabled={!predictor.current?.initialized || loading || !currentDrivers.length}
             className="w-full bg-black hover:bg-gray-800"
           >
             {loading ? (
@@ -222,9 +166,9 @@ const WinnerPredictor = () => {
             </div>
           )}
 
-          {!prediction && !loading && (
+          {!prediction && !loading && nextRace && (
             <p className="text-sm text-gray-500 text-center">
-              Click the button above to get race winner predictions for {nextRace?.name}.
+              Click the button above to get race winner predictions for {nextRace.name}.
             </p>
           )}
         </div>

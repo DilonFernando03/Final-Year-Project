@@ -2,107 +2,154 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import './stints.css';
 
-function Stints({ sessionKey, meetingKey, primaryDriver }) {
-  const [driverStints, setDriverStints] = useState([]);
+function Stints({ sessionKey, meetingKey }) {
+  const [allDriverStints, setAllDriverStints] = useState({});
+  const [allDrivers, setAllDrivers] = useState([]);
 
-  const getDriverNumberFromAPI = useCallback(async (driverName) => {
-    try {
-      const response = await fetch(
-        `https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`
-      );
-      const data = await response.json();
-      const driver = data.find((driver) => driver.full_name === driverName);
-      return driver ? driver.driver_number : null;
-    } catch (error) {
-      console.error('Error fetching driver number:', error);
-      return null;
-    }
-  }, [meetingKey, sessionKey]);
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  useEffect(() => {
-    const fetchDriverStints = async () => {
-      if (!sessionKey || !meetingKey || !primaryDriver) return;
-
-      const driverNum = await getDriverNumberFromAPI(primaryDriver);
-
-      if (!driverNum) {
-        console.error(`Driver number not found for ${primaryDriver}`);
-        return;
-      }
-
+  const fetchWithRetry = async (url, retries = 3, baseDelay = 1000) => {
+    for (let i = 0; i < retries; i++) {
       try {
-        const response = await fetch(
-          `https://api.openf1.org/v1/stints?meeting_key=${meetingKey}&session_key=${sessionKey}`
-        );
-        const data = await response.json();
-        const filteredStints = data.filter(
-          (stint) => stint.driver_number === driverNum
-        );
-        setDriverStints(filteredStints);
+        const response = await fetch(url);
+        if (!response.ok) {
+          if (response.status === 429) {
+            await delay(baseDelay * Math.pow(2, i));
+            continue;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
       } catch (error) {
-        console.error('Error fetching stints data:', error);
+        if (i === retries - 1) throw error;
+        await delay(baseDelay * Math.pow(2, i));
+      }
+    }
+  };
+
+  // Fetch all drivers first
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      if (!sessionKey || !meetingKey) return;
+      
+      try {
+        const response = await fetchWithRetry(
+          `https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`
+        );
+        
+        const drivers = response.map(driver => ({
+          name: driver.full_name,
+          number: driver.driver_number
+        }));
+        
+        setAllDrivers(drivers);
+      } catch (error) {
+        console.error('Error fetching drivers:', error);
       }
     };
 
-    fetchDriverStints();
-  }, [sessionKey, meetingKey, primaryDriver, getDriverNumberFromAPI]);
+    fetchDrivers();
+  }, [sessionKey, meetingKey]);
+
+  // Fetch stints for each driver
+  useEffect(() => {
+    const fetchAllStints = async () => {
+      if (!allDrivers.length) return;
+
+      const newStints = {};
+      
+      for (const driver of allDrivers) {
+        try {
+          await delay(500); // Rate limiting
+          const stintsData = await fetchWithRetry(
+            `https://api.openf1.org/v1/stints?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driver.number}`
+          );
+          
+          if (stintsData && stintsData.length > 0) {
+            newStints[driver.name] = stintsData;
+          }
+        } catch (error) {
+          console.error(`Error fetching stints for ${driver.name}:`, error);
+        }
+      }
+
+      setAllDriverStints(newStints);
+    };
+
+    fetchAllStints();
+  }, [allDrivers, meetingKey, sessionKey]);
 
   const renderPlot = () => {
-    if (driverStints.length === 0) return null;
+    if (Object.keys(allDriverStints).length === 0) return null;
 
-    const maxLap = Math.max(...driverStints.map(stint => stint.lap_end));
+    const driversWithData = Object.keys(allDriverStints);
+    const maxLap = Math.max(
+      ...driversWithData.flatMap(driver => 
+        allDriverStints[driver].map(stint => stint.lap_end)
+      )
+    );
     const xAxisMax = Math.ceil(maxLap * 1.05);
 
-    const data = driverStints.map((stint, index) => {
-      const compoundLetter = stint.compound === 'SOFT' ? 'S' :
-                           stint.compound === 'MEDIUM' ? 'M' :
-                           stint.compound === 'HARD' ? 'H' :
-                           stint.compound === 'WET' ? 'W' :
-                           stint.compound === 'INTERMEDIATE' ? 'I' :
-                           'U';
+    const MAX_CHART_HEIGHT = 600; // Increased for more drivers
+    const numDrivers = driversWithData.length;
+    const maxBarWidth = Math.max(10, Math.min(20, Math.floor(MAX_CHART_HEIGHT / numDrivers)));
+    const chartHeight = Math.min(MAX_CHART_HEIGHT, Math.max(120, 30 * numDrivers));
 
-      const color = stint.compound === 'SOFT' ? '#FF4D4D' :
-                   stint.compound === 'MEDIUM' ? '#FFD700' :
-                   stint.compound === 'HARD' ? '#808080' :
-                   stint.compound === 'WET' ? '#00008B' : 
-                   stint.compound === 'INTERMEDIATE' ? '#006400' : '#B0B0B0';
+    const data = driversWithData.flatMap((driverName, driverIndex) => {
+      const driverStints = allDriverStints[driverName] || [];
+      
+      return driverStints.flatMap((stint) => {
+        const compoundLetter = stint.compound === 'SOFT' ? 'S' :
+                             stint.compound === 'MEDIUM' ? 'M' :
+                             stint.compound === 'HARD' ? 'H' :
+                             stint.compound === 'WET' ? 'W' :
+                             stint.compound === 'INTERMEDIATE' ? 'I' :
+                             'U';
 
-      // Create bar and text traces
-      const bar = {
-        type: 'scatter',
-        mode: 'lines',
-        x: [stint.lap_start, stint.lap_end],
-        y: [(index + 1), (index + 1)],
-        line: {
-          color: color,
-          width: 20
-        },
-        hoverinfo: 'text',
-        hovertext: `Stint ${index + 1}<br>Laps: ${stint.lap_start} - ${stint.lap_end}<br>Compound: ${stint.compound}`,
-        showlegend: false
-      };
+        const color = stint.compound === 'SOFT' ? '#FF4D4D' :
+                     stint.compound === 'MEDIUM' ? '#FFD700' :
+                     stint.compound === 'HARD' ? '#808080' :
+                     stint.compound === 'WET' ? '#00008B' : 
+                     stint.compound === 'INTERMEDIATE' ? '#006400' : '#B0B0B0';
 
-      const text = {
-        type: 'scatter',
-        mode: 'text',
-        x: [(stint.lap_start + stint.lap_end) / 2], // Center position
-        y: [index + 1],
-        text: [compoundLetter],
-        textfont: {
-          size: 14,
-          color: 'white',
-          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-        },
-        hoverinfo: 'none',
-        showlegend: false
-      };
+        const yPosition = driversWithData.length - driverIndex;
 
-      return [bar, text];
-    }).flat();
+        const bar = {
+          type: 'scatter',
+          mode: 'lines',
+          x: [stint.lap_start, stint.lap_end],
+          y: [yPosition, yPosition],
+          line: {
+            color: color,
+            width: maxBarWidth
+          },
+          hoverinfo: 'text',
+          hovertext: `${driverName}<br>Laps: ${stint.lap_start} - ${stint.lap_end}<br>Compound: ${stint.compound}`,
+          showlegend: false
+        };
+
+        const text = {
+          type: 'scatter',
+          mode: 'text',
+          x: [(stint.lap_start + stint.lap_end) / 2],
+          y: [yPosition],
+          text: [compoundLetter],
+          textfont: {
+            size: Math.min(12, maxBarWidth - 4),
+            color: 'white',
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          },
+          hoverinfo: 'none',
+          showlegend: false
+        };
+
+        return [bar, text];
+      });
+    });
 
     const layout = {
       title: {
-        text: `Pit Strategy for ${primaryDriver}`,
+        text: 'Pit Strategy - All Drivers',
         font: {
           size: 16,
           family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -123,26 +170,23 @@ function Stints({ sessionKey, meetingKey, primaryDriver }) {
         dtick: 9
       },
       yaxis: {
-        title: {
-          text: 'Stints',
-          font: {
-            size: 12,
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-          },
-          standoff: 20
-        },
-        ticktext: driverStints.map((_, i) => `Stint ${i + 1}`),
-        tickvals: driverStints.map((_, i) => i + 1),
-        range: [0.5, driverStints.length + 0.5],
-        showgrid: true,
-        gridcolor: '#E5E5E5',
-        zeroline: false
+        showticklabels: true,
+        ticktext: driversWithData,
+        tickvals: driversWithData.map((_, i) => driversWithData.length - i),
+        range: [0.5, driversWithData.length + 0.5],
+        showgrid: false,
+        zeroline: false,
+        fixedrange: true,
+        tickfont: {
+          size: Math.min(12, maxBarWidth - 2),
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        }
       },
       plot_bgcolor: 'white',
       paper_bgcolor: 'white',
-      height: 200,
+      height: chartHeight,
       margin: {
-        l: 80,
+        l: 150, // Increased left margin for longer driver names
         r: 20,
         t: 40,
         b: 40
@@ -168,6 +212,7 @@ function Stints({ sessionKey, meetingKey, primaryDriver }) {
         layout={layout}
         config={config}
         className="stint-plot"
+        style={{ maxHeight: MAX_CHART_HEIGHT }}
       />
     );
   };

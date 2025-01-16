@@ -8,6 +8,7 @@ import WinnerPredictor from '../Predictor/winnerPredictor';
 import Stints from '../Graphs/Stints/stints';
 import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
 import PositionTimeline from '../Graphs/PositionTimeline/positionTimeline';
+import DriverRaceInfo from './DriverInfo';
 import DriverRatings from '../Graphs/RadarChart/driverRatings';
 
 function Dashboard() {
@@ -24,11 +25,11 @@ function Dashboard() {
   const [driverImage, setDriverImage] = useState('');
   const [driverColour, setDriverColour] = useState('');
   const [meetingOfficialName, setMeetingOfficialName] = useState('');
+  const [selectedDrivers, setSelectedDrivers] = useState([]);
+  const [driverColors, setDriverColors] = useState({});
   
-  // Ref for scrolling to predictor section
   const predictorRef = useRef(null);
 
-  // Function to reset dashboard when year changes
   const resetDashboard = () => {
     setRace(null);
     setPrimaryDriver(null);
@@ -42,9 +43,10 @@ function Dashboard() {
     setDriverColour('');
     setDriverNumber('');
     setMeetingOfficialName('');
+    setSelectedDrivers([]);
+    setDriverColors({});
   };
 
-  // Fetch races when year is selected
   useEffect(() => {
     if (year) {
       const fetchRacesForYear = async () => {
@@ -61,7 +63,6 @@ function Dashboard() {
     }
   }, [year]);
 
-  // Fetch driver image and team color when the primary driver is selected
   useEffect(() => {
     if (primaryDriver) {
       const fetchDriverDetails = async () => {
@@ -86,7 +87,6 @@ function Dashboard() {
     }
   }, [primaryDriver]);
 
-  // Fetch laps when sessionKey and meetingKey are available
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchLapsForRace = async () => {
@@ -103,7 +103,6 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
-  // Fetch session_key and meeting_key based on year and race
   useEffect(() => {
     const fetchKeys = async () => {
       if (year && race) {
@@ -124,7 +123,6 @@ function Dashboard() {
     fetchKeys();
   }, [year, race]);
 
-  // Fetch driver names when session and meeting keys are available
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchDriverData = async () => {
@@ -132,7 +130,12 @@ function Dashboard() {
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           const driverData = data.map((driver) => driver.full_name);
+          const colors = {};
+          data.forEach(driver => {
+            colors[driver.full_name] = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
+          });
           setDrivers(driverData);
+          setDriverColors(colors);
         } catch (error) {
           console.error('Error fetching driver data:', error);
         }
@@ -141,7 +144,6 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
-  // Fetch the official meeting name when meetingKey and race are available
   useEffect(() => {
     const fetchMeetingOfficialName = async () => {
       if (meetingKey && race) {
@@ -164,40 +166,38 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Header */}
       <div className="bg-black w-full py-4 px-8 text-white flex items-center justify-center">
         <h1 className="text-3xl font-bold text-white">
           F1 Data Dashboard<i className="fa-solid fa-flag-checkered text-white text-3xl"></i>
         </h1>
       </div>
 
-      {/* Header Section */}
       <header>
         {meetingOfficialName && (
           <h1 className="meeting-title">{meetingOfficialName}</h1>
         )}
         
         <div className="controls-row">
-          <YearDropdown 
-            onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
-          />
-          <RaceDropdown 
-            races={availableRaces} 
-            onRaceChange={setRace} 
-            disabled={!year} 
-          />
-          <DriverDropdown 
-            drivers={drivers} 
-            onDriverChange={setPrimaryDriver} 
-            disabled={!year || !race} 
-          />
+          <div className="flex items-center justify-center w-full gap-4">
+            <YearDropdown 
+              onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
+            />
+            <RaceDropdown 
+              races={availableRaces} 
+              onRaceChange={setRace} 
+              disabled={!year} 
+            />
+            <DriverDropdown 
+              drivers={drivers} 
+              onDriverChange={setPrimaryDriver} 
+              disabled={!year || !race} 
+            />
+          </div>
         </div>
       </header>
 
-      {/* Main Dashboard Grid */}
       {race && primaryDriver && (
         <div className="dashboard-grid">
-          {/* Info Panel */}
           <aside className="info-panel">
             <div className="dashboard-card">
               <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
@@ -207,9 +207,7 @@ function Dashboard() {
             </div>
           </aside>
 
-          {/* Main Content */}
           <main className="main-content">
-            {/* Driver Header */}
             {driverImage && (
               <div 
                 className="driver-header"
@@ -223,35 +221,38 @@ function Dashboard() {
               </div>
             )}
 
-            {/* Charts */}
             {primaryDriver && sessionKey && meetingKey && (
               <div className="charts-grid">
                 <div className="dashboard-card combined-charts">
-                  <CombinedCharts 
-                    primaryDriver={primaryDriver}
-                    sessionKey={sessionKey}
-                    meetingKey={meetingKey}
-                    lap={lap}
-                    availableLaps={availableLaps}
-                    onLapChange={setLap}
-                  />
+                <CombinedCharts 
+                primaryDriver={primaryDriver}
+                sessionKey={sessionKey}
+                meetingKey={meetingKey}
+                lap={lap}
+                availableLaps={availableLaps}
+                onLapChange={setLap}
+                selectedDrivers={selectedDrivers}        
+                setSelectedDrivers={setSelectedDrivers}  
+                driverColors={driverColors}
+                />
                 </div>
                 
-                {/* Stints and Ratings Row */}
                 <div className="charts-row">
                   <div className="dashboard-card charts-card">
-                    <Stints 
-                      sessionKey={sessionKey} 
-                      meetingKey={meetingKey} 
-                      primaryDriver={primaryDriver}
-                    />
+                  <Stints 
+                    sessionKey={sessionKey} 
+                    meetingKey={meetingKey} 
+                  />
                   </div>
                   <div className="dashboard-card charts-card">
-                    <DriverRatings driverNumber={driverNumber} />
+                  <DriverRatings 
+                      driverNumber={driverNumber}
+                      selectedDrivers={selectedDrivers}
+                      driverColors={driverColors}
+                    />
                   </div>
                 </div>
 
-                {/* Winner Predictor */}
                 <div className="dashboard-card charts-card" ref={predictorRef}>
                   <WinnerPredictor 
                     sessionKey={sessionKey}
@@ -260,11 +261,11 @@ function Dashboard() {
                 </div>
               </div>
             )}
-                      </main>
-                    </div>
-                  )}
-                </div>
-              );
+          </main>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default Dashboard;

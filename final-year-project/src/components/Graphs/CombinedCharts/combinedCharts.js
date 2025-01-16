@@ -3,10 +3,9 @@ import LineChart from '../LineChart/LineChart_';
 import SingleLapCharts from '../SingleLapCharts/SingleLapCharts';
 import './combinedCharts.css';
 
-function CombinedCharts({ primaryDriver, sessionKey, meetingKey, lap, availableLaps, onLapChange }) {
-  const [selectedDrivers, setSelectedDrivers] = useState([]);
+function CombinedCharts({ 
+  primaryDriver,sessionKey, meetingKey, lap, availableLaps, onLapChange,selectedDrivers, setSelectedDrivers, driverColors }) {
   const [drivers, setDrivers] = useState([]);
-  const [driverColors, setDriverColors] = useState({});
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -22,7 +21,6 @@ function CombinedCharts({ primaryDriver, sessionKey, meetingKey, lap, availableL
           });
 
           setDrivers(driverData);
-          setDriverColors(colors);
         } catch (error) {
           console.error('Error fetching driver data:', error);
         }

@@ -4,44 +4,34 @@ import _ from 'lodash';
 class Predictor {
   constructor() {
     this.model = null;
-    this.driverEncoder = new Map();
     this.initialized = false;
     this.drivers = [];
-    this.meetingKey = null;
-    this.sessionKey = null;
   }
 
-  async initialize(meetingKey, sessionKey) {
-    this.meetingKey = meetingKey;
-    this.sessionKey = sessionKey;
-
-    if (!this.meetingKey || !this.sessionKey) {
-      console.error('Meeting key and session key are required for initialization');
-      return;
+  async initialize(drivers) {
+    if (!drivers || !Array.isArray(drivers)) {
+      throw new Error('Drivers data is required and must be an array');
     }
 
-    if (this.initialized && 
-        this.currentMeetingKey === meetingKey && 
-        this.currentSessionKey === sessionKey) {
-      return;
-    }
-
-    // Initialize the model
     this.model = tf.sequential({
       layers: [
         tf.layers.dense({ 
-          units: 64, 
+          units: 128, 
           activation: 'relu', 
-          inputShape: [10],
+          inputShape: [20],
           kernelRegularizer: tf.regularizers.l2({ l2: 0.01 })
         }),
         tf.layers.dropout({ rate: 0.2 }),
         tf.layers.dense({ 
-          units: 32, 
+          units: 64, 
           activation: 'relu',
           kernelRegularizer: tf.regularizers.l2({ l2: 0.01 }) 
         }),
-        tf.layers.dense({ units: 20, activation: 'softmax' })
+        tf.layers.dense({ 
+          units: 32, 
+          activation: 'relu' 
+        }),
+        tf.layers.dense({ units: drivers.length, activation: 'softmax' })
       ]
     });
 
@@ -51,149 +41,236 @@ class Predictor {
       metrics: ['accuracy']
     });
 
-    // Fetch and store driver names for the specific session and meeting
-    try {
-      const response = await fetch(
-        `https://api.openf1.org/v1/drivers?meeting_key=${this.meetingKey}&session_key=${this.sessionKey}`
-      );
-      const data = await response.json();
-      this.drivers = _.uniqBy(data, 'full_name').map(driver => driver.full_name);
-      
-      // Store current keys to check if we need to reinitialize
-      this.currentMeetingKey = meetingKey;
-      this.currentSessionKey = sessionKey;
-    } catch (error) {
-      console.error('Error fetching driver names:', error);
-      this.drivers = [];
-    }
-
+    this.drivers = drivers;
     this.initialized = true;
   }
 
-  preprocessRaceData(raceData) {
+  async getDriverHistory(driver, nextRace) {
+    if (!nextRace || !nextRace.circuitId) {
+      console.warn('No circuit information provided for driver history');
+      return this.getDefaultHistory();
+    }
+    console.log(driver.driverId)
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/driver-history?` + 
+        `driverId=${encodeURIComponent(driver.driverId)}&` +
+        `circuitId=${encodeURIComponent(nextRace.circuitId)}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch history for ${driver.name}`);
+      }
+      
+      const data = await response.json();
+      return {
+        trackWins: data.trackWins || 0,
+        trackPodiums: data.trackPodiums || 0,
+        recentForm: this.processRecentResults(data.recentResults || []),
+        avgFinishPosition: this.calculateAverageFinish(data.recentResults || []),
+        dnfRate: data.dnfs / (data.recentResults?.length || 1)
+      };
+
+
+    } catch (error) {
+      console.error('Driver history error:', error);
+      return this.getDefaultHistory();
+    }
+  }
+
+  getDefaultHistory() {
     return {
-      qualifying: this.normalizeQualifying(raceData.qualifying_results),
-      practice: this.normalizePractice(raceData.practice_data),
-      weather: this.normalizeWeather(raceData.weather_conditions),
-      historical: this.normalizeHistorical(raceData.historical_performance),
-      current: this.normalizeCurrentForm(raceData.current_season_stats)
+      trackWins: 0,
+      trackPodiums: 0,
+      recentForm: [0,0,0,0,0],
+      avgFinishPosition: 10,
+      dnfRate: 0.1
     };
   }
 
-  normalizeQualifying(qualifyingData) {
-    return qualifyingData.map(result => ({
-      position: result.position / 20,
-      gap_to_leader: this.normalizeTime(result.gap_to_leader),
-      sector_times: this.normalizeSectorTimes(result.sector_times)
-    }));
+  async getCurrentSeasonStats(driver) {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/season-stats?driverId=${encodeURIComponent(driver.driverId)}`
+      );
+      if (!response.ok) throw new Error(`Failed to fetch stats for ${driver.name}`);
+      
+      const data = await response.json();
+      return {
+        points: data.points || 0,
+        podiums: data.podiums || 0,
+        wins: data.wins || 0,
+        dnfs: data.dnfs || 0,
+        averageFinish: data.averageFinish || 10,
+        momentum: this.calculateMomentum(data.recentResults || [])
+      };
+    } catch (error) {
+      console.error('Season stats error:', error);
+      return {
+        points: 0,
+        podiums: 0,
+        wins: 0,
+        dnfs: 0,
+        averageFinish: 10,
+        momentum: 0
+      };
+    }
   }
 
-  normalizePractice(practiceData) {
-    const normalizedData = {};
-    for (const [driverNumber, data] of Object.entries(practiceData)) {
-      const validLapTimes = data.lap_times.filter(time => time > 0);
-      if (validLapTimes.length > 0) {
-        const avgTime = validLapTimes.reduce((a, b) => a + b, 0) / validLapTimes.length;
-        normalizedData[driverNumber] = avgTime / Math.max(...validLapTimes);
-      } else {
-        normalizedData[driverNumber] = 0;
+  getCarPerformance(team) {
+    const performances = {
+      'Red Bull': { reliability: 0.95, speed: 0.95, cornering: 0.90, tires: 0.85 },
+      'Mercedes': { reliability: 0.90, speed: 0.85, cornering: 0.90, tires: 0.90 },
+      'Ferrari': { reliability: 0.85, speed: 0.90, cornering: 0.85, tires: 0.85 },
+      'McLaren': { reliability: 0.90, speed: 0.85, cornering: 0.80, tires: 0.80 },
+      'Aston Martin': { reliability: 0.85, speed: 0.80, cornering: 0.85, tires: 0.85 },
+      'Alpine': { reliability: 0.80, speed: 0.75, cornering: 0.80, tires: 0.80 },
+      'Williams': { reliability: 0.75, speed: 0.70, cornering: 0.75, tires: 0.75 },
+      'AlphaTauri': { reliability: 0.80, speed: 0.75, cornering: 0.75, tires: 0.75 },
+      'Alfa Romeo': { reliability: 0.75, speed: 0.70, cornering: 0.75, tires: 0.75 },
+      'Haas': { reliability: 0.75, speed: 0.70, cornering: 0.70, tires: 0.70 }
+    };
+    
+    return performances[team] || {
+      reliability: 0.75,
+      speed: 0.70,
+      cornering: 0.70,
+      tires: 0.70
+    };
+  }
+
+  getCircuitFactors(trackName) {
+    const circuits = {
+      'Monaco': {
+        overtakingDifficulty: 0.9,
+        trackLength: 3.337,
+        corners: { slow: 8, medium: 4, fast: 2 },
+        tireDegradation: 0.6
+      },
+      'Monza': {
+        overtakingDifficulty: 0.4,
+        trackLength: 5.793,
+        corners: { slow: 2, medium: 4, fast: 5 },
+        tireDegradation: 0.7
+      },
+      'Silverstone': {
+        overtakingDifficulty: 0.5,
+        trackLength: 5.891,
+        corners: { slow: 2, medium: 4, fast: 8 },
+        tireDegradation: 0.8
+      },
+      'Spa': {
+        overtakingDifficulty: 0.4,
+        trackLength: 7.004,
+        corners: { slow: 3, medium: 5, fast: 11 },
+        tireDegradation: 0.75
       }
-    }
-    return normalizedData;
+    };
+    
+    return circuits[trackName] || {
+      overtakingDifficulty: 0.6,
+      trackLength: 5.0,
+      corners: { slow: 4, medium: 6, fast: 4 },
+      tireDegradation: 0.7
+    };
   }
 
   normalizeWeather(weather) {
     return {
-      temperature: (weather.temperature - 20) / 30,
-      humidity: weather.humidity / 100,
-      rain_probability: weather.rain_probability / 100,
-      wind_speed: weather.wind_speed / 50
+      temperature: ((weather.temperature || 25) - 20) / 30,
+      humidity: (weather.humidity || 60) / 100,
+      rain_probability: (weather.rain_probability || 20) / 100,
+      wind_speed: (weather.wind_speed || 15) / 50,
+      track_temperature: ((weather.track_temperature || 30) - 25) / 35,
+      weather_change_likelihood: (weather.weather_change_likelihood || 0) / 100
     };
   }
 
-  normalizeHistorical(historicalData) {
-    return historicalData.map(data => ({
-      past_wins_ratio: data.past_wins / Math.max(...historicalData.map(d => d.past_wins || 1)),
-      past_podiums_ratio: data.past_podiums / Math.max(...historicalData.map(d => d.past_podiums || 1)),
-      track_performance: data.track_performance
-    }));
+  processRecentResults(results) {
+    return results.map(result => result === 'DNF' ? 20 : result).slice(-5);
   }
 
-  normalizeCurrentForm(currentStats) {
-    return currentStats.map(stats => ({
-      points_ratio: stats.points / Math.max(...currentStats.map(d => d.points || 1)),
-      wins_ratio: stats.wins / Math.max(...currentStats.map(d => d.wins || 1)),
-      podiums_ratio: stats.podiums / Math.max(...currentStats.map(d => d.podiums || 1)),
-      form: stats.form
-    }));
+  calculateAverageFinish(results) {
+    const validResults = results.filter(pos => pos !== 'DNF').map(pos => parseInt(pos));
+    return validResults.length ? _.mean(validResults) : 10;
   }
 
-  normalizeTime(time) {
-    if (!time) return 0;
-    return time / 120; // assuming 120 seconds as max gap
+  calculateMomentum(recentResults) {
+    if (!recentResults.length) return 0;
+    const weights = [0.4, 0.3, 0.2, 0.07, 0.03];
+    return _.sum(recentResults.slice(-5).map((result, i) => 
+      (21 - (result === 'DNF' ? 20 : result)) * weights[i]
+    )) / 20;
   }
 
-  normalizeSectorTimes(sectorTimes) {
-    if (!sectorTimes || !Array.isArray(sectorTimes)) return [0, 0, 0];
-    return sectorTimes.map(time => this.normalizeTime(time));
-  }
-
-  async predict(raceData) {
-    await this.initialize(this.meetingKey, this.sessionKey);
-    
-    const processedData = this.preprocessRaceData(raceData);
-    const features = tf.tidy(() => this.createFeatureTensor(processedData));
-    
-    const predictions = await this.model.predict(features).array();
-    features.dispose();
-
-    return this.formatPredictions(predictions[0]);
-  }
-
-  createFeatureTensor(processedData) {
-    const features = [
-      processedData.weather.temperature || 0,
-      processedData.weather.humidity || 0,
-      processedData.weather.rain_probability || 0,
-      processedData.weather.wind_speed || 0,
-      processedData.qualifying[0]?.position || 0,
-      processedData.qualifying[0]?.gap_to_leader || 0,
-      Object.values(processedData.practice)[0] || 0,
-      processedData.historical[0]?.track_performance || 0,
-      processedData.current[0]?.form || 0,
-      processedData.current[0]?.points_ratio || 0
-    ];
-
-    if (features.length !== 10) {
-      console.error('Feature tensor length mismatch:', features.length);
-      while (features.length < 10) {
-        features.push(0);
-      }
+  async predict(raceData = {}) {
+    if (!this.initialized || !this.drivers.length) {
+      throw new Error('Predictor not properly initialized');
     }
 
-    return tf.tensor2d([features]);
+    try {
+      const features = [];
+      for (const driver of this.drivers) {
+        const history = await this.getDriverHistory(driver, raceData.nextRace);
+        console.log(history)
+        const seasonStats = await this.getCurrentSeasonStats(driver);
+        const carPerf = this.getCarPerformance(driver.team);
+        const circuitFactors = this.getCircuitFactors(raceData.nextRace?.trackName);
+        const weather = this.normalizeWeather(raceData.weather || {});
+
+        const driverFeatures = [
+          // Historical Performance (5 features)
+          history.trackWins / 10,
+          history.trackPodiums / 20,
+          (20 - history.avgFinishPosition) / 20,
+          1 - history.dnfRate,
+          this.calculateMomentum(history.recentForm),
+
+          // Current Season Form (5 features)
+          seasonStats.points / 400,
+          seasonStats.podiums / 20,
+          seasonStats.wins / 10,
+          (20 - seasonStats.averageFinish) / 20,
+          seasonStats.momentum,
+
+          // Car Performance (4 features)
+          carPerf.reliability,
+          carPerf.speed,
+          carPerf.cornering,
+          carPerf.tires,
+
+          // Weather Impact (3 features)
+          weather.temperature,
+          weather.rain_probability,
+          weather.track_temperature,
+
+          // Circuit Specific (3 features)
+          1 - circuitFactors.overtakingDifficulty,
+          circuitFactors.corners.fast / 15,
+          1 - circuitFactors.tireDegradation
+        ];
+
+        features.push(driverFeatures);
+      }
+
+      const tensorFeatures = tf.tidy(() => tf.tensor2d(features));
+      const predictions = await this.model.predict(tensorFeatures).array();
+      tensorFeatures.dispose();
+
+      return this.formatPredictions(predictions[0]);
+    } catch (error) {
+      console.error('Prediction error:', error);
+      throw error;
+    }
   }
 
   formatPredictions(rawPredictions) {
-    // First normalize the raw predictions
     const totalProb = _.sum(rawPredictions);
-    let normalizedPredictions = rawPredictions.map(prob => prob / totalProb);
-
-    // Apply exponential scaling to increase separation between top drivers
-    normalizedPredictions = normalizedPredictions.map(prob => Math.pow(prob, 0.5));
+    const normalizedPredictions = rawPredictions.map(prob => prob / totalProb);
     
-    // Renormalize after scaling and adjust to realistic F1 win probabilities
-    const totalAfterScaling = _.sum(normalizedPredictions);
-    const scaledPredictions = normalizedPredictions.map(prob => {
-      const scaledProb = (prob / totalAfterScaling);
-      // Adjust probabilities to be more realistic for F1
-      // Top drivers typically have 20-40% chance of winning
-      return scaledProb * (scaledProb > 0.1 ? 2.5 : 1);
-    });
-
-    const top3 = _.chain(scaledPredictions)
+    const top3 = _.chain(normalizedPredictions)
       .map((prob, index) => ({
-        driver: this.getDriverName(index),
+        driver: this.drivers[index]?.name || `Driver ${index + 1}`,
         probability: prob,
         confidence: this.calculateConfidence(prob)
       }))
@@ -201,47 +278,45 @@ class Predictor {
       .take(3)
       .value();
 
-    const factors = this.analyzeFactors(top3[0].driver);
-
     return {
       predictions: top3,
-      factors,
+      factors: this.analyzeFactors(),
       reliability: this.calculateReliability(top3[0].probability)
     };
   }
 
   calculateConfidence(probability) {
-    console.log(probability)
-    const confidenceThresholds = {
-      HIGH: 0.25,    // 25% or higher chance - very likely for F1
-      MEDIUM: 0.15,  // 15-25% chance - good chance
-      LOW: 0         // Below 15% - lower chance
+    const thresholds = {
+      VERY_HIGH: 0.35,
+      HIGH: 0.25,
+      MEDIUM: 0.15,
+      LOW: 0.08,
+      VERY_LOW: 0
     };
 
-    if (probability >= confidenceThresholds.HIGH) return 'HIGH';
-    if (probability >= confidenceThresholds.MEDIUM) return 'MEDIUM';
-    return 'LOW';
+    if (probability >= thresholds.VERY_HIGH) return 'VERY_HIGH';
+    if (probability >= thresholds.HIGH) return 'HIGH';
+    if (probability >= thresholds.MEDIUM) return 'MEDIUM';
+    if (probability >= thresholds.LOW) return 'LOW';
+    return 'VERY_LOW';
   }
 
   calculateReliability(topProbability) {
-    if (topProbability > 0.7) return 'High';
+    if (topProbability > 0.8) return 'Very High';
+    if (topProbability > 0.6) return 'High';
     if (topProbability > 0.4) return 'Medium';
-    return 'Low';
+    if (topProbability > 0.2) return 'Low';
+    return 'Very Low';
   }
 
-  getDriverName(index) {
-    if (this.drivers.length > 0 && index < this.drivers.length) {
-      return this.drivers[index];
-    }
-    return `Driver ${index + 1}`;
-  }
-
-  analyzeFactors(driver) {
+  analyzeFactors() {
     return {
-      qualifying_performance: 'Strong qualifying position',
-      practice_pace: 'Consistent practice sessions',
-      track_history: 'Previous success at this circuit',
-      current_form: 'Good recent performance'
+      historical_performance: 'Based on previous results at this track',
+      track_specific: 'Historical performance at this circuit',
+      current_form: 'Recent race performances and momentum',
+      car_performance: 'Current car capabilities and reliability',
+      weather_adaptation: 'Performance in forecasted conditions',
+      circuit_suitability: 'Track characteristics vs driving style'
     };
   }
 }

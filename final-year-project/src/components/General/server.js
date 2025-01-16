@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const cors = require('cors');
+const { Round } = require('@tensorflow/tfjs');
 
 const app = express();
 const PORT = 5000;
@@ -100,32 +101,25 @@ app.get('/api/next-race', async (req, res) => {
     try {
         const now = new Date();
         const currentYear = now.getFullYear();
-        console.log('Current year:', currentYear);
         
-        console.log('Attempting to fetch current season races...');
         let nextRace = await fetchNextRaceFromCalendar(currentYear);
-        console.log('Current season next race:', nextRace);
         
         if (!nextRace) {
-            console.log('No races found in current season, checking next year...');
             nextRace = await fetchNextRaceFromCalendar(currentYear + 1);
-            console.log('Next season race:', nextRace);
         }
  
         if (!nextRace) {
-            console.log('No upcoming races found in either season');
             return res.status(404).json({ error: 'No upcoming races found' });
         }
  
-        console.log('Returning next race:', nextRace);
         res.json(nextRace);
     } catch (error) {
         console.error('Error in /api/next-race:', error);
         res.status(500).json({ error: 'Failed to fetch next race', details: error.message });
     }
- });
+});
  
- async function fetchNextRaceFromCalendar(season) {
+async function fetchNextRaceFromCalendar(season) {
     const url = `https://racingnews365.com/formula-1-calendar-${season}`;
     const { data } = await axios.get(url);
     const $ = cheerio.load(data);
@@ -152,6 +146,171 @@ app.get('/api/next-race', async (req, res) => {
     const now = new Date();
     return races.find(race => race.date > now);
 }
+
+// Current drivers endpoint
+app.get('/api/current-drivers', async (req, res) => {
+    const { season } = req.query;
+    
+    if (!season) {
+        return res.status(400).json({ error: 'Season is required' });
+    }
+
+    try {
+        const currentDrivers = await fetchDriversForSeason(parseInt(season));
+        if (currentDrivers.length > 0) {
+            return res.json(currentDrivers);
+        }
+
+        // Try previous season if current season has no drivers
+        const previousSeasonDrivers = await fetchDriversForSeason(parseInt(season) - 1);
+        if (previousSeasonDrivers.length > 0) {
+            return res.json(previousSeasonDrivers);
+        }
+
+        throw new Error('No drivers found for current or previous season');
+    } catch (error) {
+        console.error('Error fetching drivers:', error);
+        res.status(500).json({ error: 'Failed to fetch drivers' });
+    }
+});
+
+async function fetchDriversForSeason(season) {
+    const url = `http://ergast.com/api/f1/${season}/drivers.json`;
+    const { data } = await axios.get(url);
+    
+    if (!data.MRData?.DriverTable?.Drivers) {
+        return [];
+    }
+
+    return data.MRData.DriverTable.Drivers.map(driver => ({
+        name: `${driver.givenName} ${driver.familyName}`,
+        number: driver.permanentNumber,
+        driverId: driver.driverId
+    }));
+}
+
+// Season stats endpoint
+app.get('/api/season-stats', async (req, res) => {
+    const { driverId, season = new Date().getFullYear() } = req.query;
+    if (!driverId) {
+        return res.status(400).json({ error: 'Driver ID is required' });
+    }
+
+    async function getDriverStats(year) {
+        const url = `http://ergast.com/api/f1/${year}/drivers/${driverId}/results.json`;
+        const { data } = await axios.get(url);
+        
+        const races = data.MRData.RaceTable.Races;
+        if (!races.length) return null;
+
+        const results = races.map(race => ({
+            position: parseInt(race.Results[0].position),
+            points: parseFloat(race.Results[0].points),
+            positionText: race.Results[0].positionText
+        }));
+
+        return {
+            points: results.reduce((sum, race) => sum + race.points, 0),
+            podiums: results.filter(race => race.position <= 3).length,
+            wins: results.filter(race => race.position === 1).length,
+            dnfs: results.filter(race => race.positionText === 'R').length,
+            averageFinish: results.reduce((sum, race) => 
+                sum + (race.positionText === 'R' ? 20 : race.position), 0) / results.length,
+            recentResults: results.slice(-3).map(race => 
+                race.positionText === 'R' ? 20 : race.position)
+        };
+    }
+
+    try {
+        let stats = await getDriverStats(season);
+        
+        if (!stats) {
+            stats = await getDriverStats(season - 1);
+            if (!stats) {
+                return res.status(404).json({ error: 'No stats found for driver in current or previous season' });
+            }
+        }
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching season stats:', error);
+        res.status(500).json({ error: 'Failed to fetch season stats' });
+    }
+});
+
+// Driver history endpoint
+app.get('/api/driver-history', async (req, res) => {
+    const { driverId, circuitId } = req.query;
+    if (!driverId || !circuitId) {
+        return res.status(400).json({ error: 'Driver ID and circuit ID are required' });
+    }
+
+    try {
+        const currentYear = new Date().getFullYear();
+        const startYear = Math.max(currentYear - 30, 1950);
+        const years = Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i);
+
+        // Format the circuitId to match API format (remove hyphens)
+        const formattedCircuitId = circuitId.replace(/-/g, '_');
+
+        // Create array of promises for parallel execution
+        const resultsPromises = years.map(year => 
+            axios.get(`http://ergast.com/api/f1/${year}/drivers/${driverId}/results.json?limit=100`)
+        );
+
+        // Execute all API calls in parallel
+        const results = await Promise.all(resultsPromises);
+
+        let trackWins = 0;
+        let trackPodiums = 0;
+        let dnfs = 0;
+        let recentResults = [];
+
+        // Process all results
+        results.forEach((response, index) => {
+            const year = years[index];
+            const races = response.data.MRData.RaceTable.Races;
+            
+            const circuitRaces = races.filter(race => 
+                race.Circuit?.circuitId?.toLowerCase() === formattedCircuitId.toLowerCase()
+            );
+
+            circuitRaces.forEach(race => {
+                const result = race.Results[0];
+                const position = parseInt(result.position);
+
+                if (position === 1) trackWins++;
+                if (position <= 3) trackPodiums++;
+                if (result.positionText === 'R') dnfs++;
+
+                if (year > currentYear - 6) {
+                    recentResults.push({
+                        year,
+                        position: result.positionText === 'R' ? 'DNF' : position
+                    });
+                }
+            });
+        });
+        // Sort recent results by year (newest first) and take only the position
+        recentResults = recentResults
+            .sort((a, b) => b.year - a.year)
+            .map(result => result.position);
+
+        res.json({
+            trackWins,
+            trackPodiums,
+            dnfs,
+            recentResults
+        });
+
+    } catch (error) {
+        console.error('Error fetching driver history:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch driver history',
+            details: error.message 
+        });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
