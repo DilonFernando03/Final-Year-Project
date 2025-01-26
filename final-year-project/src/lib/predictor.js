@@ -117,27 +117,46 @@ class Predictor {
     }
   }
 
-  getCarPerformance(team) {
-    const performances = {
-      'Red Bull': { reliability: 0.95, speed: 0.95, cornering: 0.90, tires: 0.85 },
-      'Mercedes': { reliability: 0.90, speed: 0.85, cornering: 0.90, tires: 0.90 },
-      'Ferrari': { reliability: 0.85, speed: 0.90, cornering: 0.85, tires: 0.85 },
-      'McLaren': { reliability: 0.90, speed: 0.85, cornering: 0.80, tires: 0.80 },
-      'Aston Martin': { reliability: 0.85, speed: 0.80, cornering: 0.85, tires: 0.85 },
-      'Alpine': { reliability: 0.80, speed: 0.75, cornering: 0.80, tires: 0.80 },
-      'Williams': { reliability: 0.75, speed: 0.70, cornering: 0.75, tires: 0.75 },
-      'AlphaTauri': { reliability: 0.80, speed: 0.75, cornering: 0.75, tires: 0.75 },
-      'Alfa Romeo': { reliability: 0.75, speed: 0.70, cornering: 0.75, tires: 0.75 },
-      'Haas': { reliability: 0.75, speed: 0.70, cornering: 0.70, tires: 0.70 }
+  async getCarPerformance(team) {
+    const teamIds = {
+      'Red Bull': 'red_bull',
+      'Mercedes': 'mercedes',
+      'Ferrari': 'ferrari',
+      'McLaren': 'mclaren',
+      'Aston Martin': 'aston_martin',
+      'Alpine': 'alpine',
+      'Williams': 'williams',
+      'AlphaTauri': 'alphatauri',
+      'Alfa Romeo': 'alfa',
+      'Haas': 'haas'
     };
-    
-    return performances[team] || {
-      reliability: 0.75,
-      speed: 0.70,
-      cornering: 0.70,
-      tires: 0.70
-    };
-  }
+
+    try {
+      const constructorId = teamIds[team];
+      if (!constructorId) {
+        throw new Error('Team not found');
+      }
+
+      const response = await fetch(`http://localhost:5000/api/team-stats?constructorId=${constructorId}`);
+      if (!response.ok) throw new Error('Failed to fetch team stats');
+      
+      const stats = await response.json();
+      
+      return {
+        reliability: stats.reliability,
+        speed: stats.performance,
+        cornering: Math.min(0.9, stats.performance * 1.1),
+        tires: Math.min(0.9, (stats.performance + stats.reliability) / 2)
+      };
+    } catch (error) {
+      console.error('Error getting car performance:', error);
+      return {
+        reliability: 0.75,
+        speed: 0.70,
+        cornering: 0.70,
+        tires: 0.70
+      };
+    }}
 
   getCircuitFactors(trackName) {
     const circuits = {

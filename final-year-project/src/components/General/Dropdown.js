@@ -16,8 +16,8 @@ function RaceDropdown({ races, onRaceChange }) {
       <select className="common-dropdown" onChange={handleChange}>
         <option value="">Select a Race</option>
         {races.map((race, index) => (
-          <option key={index} value={race}>
-            {race}
+          <option key={index} value={race.location}>
+            Round {race.round} - {race.location}
           </option>
         ))}
       </select>

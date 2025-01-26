@@ -10,12 +10,14 @@ import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
 import PositionTimeline from '../Graphs/PositionTimeline/positionTimeline';
 import DriverRaceInfo from './DriverInfo';
 import DriverRatings from '../Graphs/RadarChart/driverRatings';
+import TeamPosition from '../Graphs/SankeyDiagram/TeamPosition';
 
 function Dashboard() {
   const [primaryDriver, setPrimaryDriver] = useState(null);
   const [driverNumber, setDriverNumber] = useState('');
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
+  const [selectedRound, setSelectedRound] = useState(null);
   const [lap, setLap] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [availableRaces, setAvailableRaces] = useState([]);
@@ -45,6 +47,15 @@ function Dashboard() {
     setMeetingOfficialName('');
     setSelectedDrivers([]);
     setDriverColors({});
+    setSelectedRound(null);
+  };
+
+  const handleRaceChange = (raceLocation) => {
+    const selectedRace = availableRaces.find(r => r.location === raceLocation);
+    if (selectedRace) {
+      setRace(raceLocation);
+      setSelectedRound(selectedRace.round);
+    }
   };
 
   useEffect(() => {
@@ -53,7 +64,10 @@ function Dashboard() {
         try {
           const response = await fetch(`https://api.openf1.org/v1/sessions?year=${year}&session_name=Race`);
           const data = await response.json();
-          const racetrack_data = data.map((track) => track.location);
+          const racetrack_data = data.map((track, index) => ({
+            location: track.location,
+            round: index + 1
+          }));
           setAvailableRaces(racetrack_data);
         } catch (error) {
           console.error('Error fetching races:', error);
@@ -164,6 +178,8 @@ function Dashboard() {
     predictorRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const allSelectionsComplete = year && race && primaryDriver;
+
   return (
     <div className="dashboard-container">
       <div className="bg-black w-full py-4 px-8 text-white flex items-center justify-center">
@@ -177,36 +193,49 @@ function Dashboard() {
           <h1 className="meeting-title">{meetingOfficialName}</h1>
         )}
         
-        <div className="controls-row">
-          <div className="flex items-center justify-center w-full gap-4">
-            <YearDropdown 
-              onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
-            />
-            <RaceDropdown 
-              races={availableRaces} 
-              onRaceChange={setRace} 
-              disabled={!year} 
-            />
-            <DriverDropdown 
-              drivers={drivers} 
-              onDriverChange={setPrimaryDriver} 
-              disabled={!year || !race} 
-            />
+        <div className="controls-container">
+            {allSelectionsComplete && (
+              <div className="top-three-container">
+                <TopDrivers year={year} raceName={race} />
+              </div>
+            )}
+            
+            <div className="controls-row">
+              <YearDropdown 
+                onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
+              />
+              <RaceDropdown 
+                races={availableRaces}
+                onRaceChange={handleRaceChange}
+                disabled={!year} 
+              />
+              <DriverDropdown 
+                drivers={drivers} 
+                onDriverChange={setPrimaryDriver} 
+                disabled={!year || !race} 
+              />
+            </div>
+            
+            {allSelectionsComplete && (
+              <div className="weather">
+                <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
+              </div>
+            )}
+            
+            {allSelectionsComplete && driverNumber && (
+              <DriverRaceInfo
+                sessionKey={sessionKey}
+                meetingKey={meetingKey}
+                driverNumber={driverNumber}
+                year={year}
+                round={selectedRound}
+              />
+            )}
           </div>
-        </div>
       </header>
 
-      {race && primaryDriver && (
+      {allSelectionsComplete && (
         <div className="dashboard-grid">
-          <aside className="info-panel">
-            <div className="dashboard-card">
-              <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
-            </div>
-            <div className="dashboard-card" style={{height:'200%'}}>
-              <TopDrivers year={year} raceName={race} />
-            </div>
-          </aside>
-
           <main className="main-content">
             {driverImage && (
               <div 
@@ -224,33 +253,40 @@ function Dashboard() {
             {primaryDriver && sessionKey && meetingKey && (
               <div className="charts-grid">
                 <div className="dashboard-card combined-charts">
-                <CombinedCharts 
-                primaryDriver={primaryDriver}
-                sessionKey={sessionKey}
-                meetingKey={meetingKey}
-                lap={lap}
-                availableLaps={availableLaps}
-                onLapChange={setLap}
-                selectedDrivers={selectedDrivers}        
-                setSelectedDrivers={setSelectedDrivers}  
-                driverColors={driverColors}
-                />
+                  <CombinedCharts 
+                    primaryDriver={primaryDriver}
+                    sessionKey={sessionKey}
+                    meetingKey={meetingKey}
+                    lap={lap}
+                    availableLaps={availableLaps}
+                    onLapChange={setLap}
+                    selectedDrivers={selectedDrivers}        
+                    setSelectedDrivers={setSelectedDrivers}  
+                    driverColors={driverColors}
+                  />
                 </div>
                 
                 <div className="charts-row">
                   <div className="dashboard-card charts-card">
-                  <Stints 
-                    sessionKey={sessionKey} 
-                    meetingKey={meetingKey} 
-                  />
+                    <Stints 
+                      sessionKey={sessionKey} 
+                      meetingKey={meetingKey} 
+                    />
                   </div>
                   <div className="dashboard-card charts-card">
-                  <DriverRatings 
+                    <DriverRatings 
                       driverNumber={driverNumber}
                       selectedDrivers={selectedDrivers}
                       driverColors={driverColors}
                     />
                   </div>
+                </div>
+
+                <div className="dashboard-card charts-card">
+                  <TeamPosition 
+                    year={year}
+                    round={selectedRound}
+                  />
                 </div>
 
                 <div className="dashboard-card charts-card" ref={predictorRef}>

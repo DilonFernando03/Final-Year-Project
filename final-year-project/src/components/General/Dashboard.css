@@ -15,6 +15,7 @@
   flex: 1;
   min-height: 0;
   padding: 0.5rem;
+  margin-top: 1rem;
 }
 
 /* Header Styles */
@@ -37,6 +38,7 @@
 
 header {
   padding: 0.5rem;
+  margin-bottom: 1.5rem; /* Increased spacing */
 }
 
 .meeting-title {
@@ -51,20 +53,25 @@ header {
 }
 
 /* Controls & Dropdowns */
+.controls-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 1rem;
+  margin: 0.5rem 0 2rem 0;
+}
+
 .controls-row {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 1rem;
-  margin: 0.5rem 0;
-  padding: 0 1rem;
-}
-
-.controls-row > div {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  width: auto;
+  position: relative;
 }
 
 .dropdown-container {
@@ -87,9 +94,9 @@ header {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: 300px;
-  min-width: 300px;
-  overflow-y: auto;
+  width: 100%;
+  max-width: 300px;
+  margin: 1rem auto 0;
 }
 
 /* Cards */
@@ -98,7 +105,6 @@ header {
   border-radius: 0.25rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   padding: 0.5rem;
-  height: 100%;
   margin-bottom: 0.5rem;
 }
 
@@ -122,46 +128,13 @@ header {
   border-radius: 0.25rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   height: 50px;
+  margin-bottom: 1rem;
 }
 
 .driver-name {
   font-size: 1rem;
   font-weight: bold;
   color: #333;
-}
-
-/* Driver Race Info */
-.driver-race-info {
-  display: flex;
-  gap: 1.5rem;
-  padding: 0.5rem 1rem;
-  background-color: white;
-  border-radius: 0.25rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.race-stat {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.race-stat-label {
-  font-size: 0.875rem;
-  color: #6B7280;
-  font-weight: 500;
-}
-
-.race-stat-value {
-  font-size: 1rem;
-  color: #111827;
-  font-weight: 600;
-}
-
-.driver-race-info-loading {
-  padding: 0.5rem 1rem;
-  color: #6B7280;
-  font-size: 0.875rem;
 }
 
 /* Charts */
@@ -340,14 +313,8 @@ header {
   }
 
   .info-panel {
-    width: 100%;
-    flex-direction: row;
-    height: auto;
-  }
-
-  .info-panel > div {
-    flex: 1;
-    min-width: 250px;
+    flex-direction: column;
+    align-items: center;
   }
 
   .stints-ratings-row {

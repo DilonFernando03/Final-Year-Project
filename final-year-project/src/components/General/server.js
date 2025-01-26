@@ -22,7 +22,6 @@ app.get('/api/top-three', async (req, res) => {
     const raceUrl = `https://pitwall.app/races/${raceSlug}`;
 
     try {
-        console.log(`Fetching data from ${raceUrl}`);
         const { data } = await axios.get(raceUrl);
         const $ = cheerio.load(data);
 
@@ -60,7 +59,6 @@ app.get('/api/driver-details', async (req, res) => {
         const driverSlug = driverName.toLowerCase().replace(/\s+/g, '-');
         const url = `https://www.formula1.com/en/drivers/${driverSlug}.html`;
 
-        console.log(`Fetching driver data from ${url}`);
         const { data } = await axios.get(url);
         const $ = cheerio.load(data);
 
@@ -175,7 +173,7 @@ app.get('/api/current-drivers', async (req, res) => {
 });
 
 async function fetchDriversForSeason(season) {
-    const url = `http://ergast.com/api/f1/${season}/drivers.json`;
+    const url = `http://api.jolpi.ca/ergast/f1/${season}/drivers.json`;
     const { data } = await axios.get(url);
     
     if (!data.MRData?.DriverTable?.Drivers) {
@@ -197,7 +195,7 @@ app.get('/api/season-stats', async (req, res) => {
     }
 
     async function getDriverStats(year) {
-        const url = `http://ergast.com/api/f1/${year}/drivers/${driverId}/results.json`;
+        const url = `http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json`;
         const { data } = await axios.get(url);
         
         const races = data.MRData.RaceTable.Races;
@@ -255,7 +253,7 @@ app.get('/api/driver-history', async (req, res) => {
 
         // Create array of promises for parallel execution
         const resultsPromises = years.map(year => 
-            axios.get(`http://ergast.com/api/f1/${year}/drivers/${driverId}/results.json?limit=100`)
+            axios.get(`http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json?limit=100`)
         );
 
         // Execute all API calls in parallel
@@ -309,6 +307,156 @@ app.get('/api/driver-history', async (req, res) => {
             error: 'Failed to fetch driver history',
             details: error.message 
         });
+    }
+});
+
+// Team Position Flow endpoint
+app.get('/api/team-positions', async (req, res) => {
+    const { year, round } = req.query;
+    
+    if (!year || !round) {
+        return res.status(400).json({ error: 'Year and round are required' });
+    }
+
+    try {
+        const url = `http://api.jolpi.ca/ergast/f1/${year}/${round}/results.json`;
+
+        const { data } = await axios.get(url);
+        
+        // Access the results array correctly
+        const raceResults = data.MRData.RaceTable.Races[0].Results;
+
+        const teamPositions = raceResults.map(result => ({
+            team: result.Constructor.constructorId,
+            position: parseInt(result.position),
+            driver: `${result.Driver.givenName} ${result.Driver.familyName}`
+        }));
+
+
+        // Group positions into ranges
+        const positionRanges = {
+            'Podium (1-3)': [1, 2, 3],
+            'Top 5 (4-5)': [4, 5],
+            'Points (6-10)': [6, 7, 8, 9, 10],
+            'Outside Points (11-20)': Array.from({length: 10}, (_, i) => i + 11)
+        };
+
+        // Create nodes and links for Sankey diagram
+        const nodes = [];
+        
+        // Add team nodes first
+        const teams = [...new Set(teamPositions.map(tp => tp.team))];
+        teams.forEach(team => {
+            nodes.push({ name: team });
+        });
+
+        // Then add position range nodes
+        Object.keys(positionRanges).forEach(range => {
+            nodes.push({ name: range });
+        });
+
+        // Create links with source as team index and target as position range index
+        const links = teamPositions.map(tp => {
+            const teamIndex = teams.indexOf(tp.team);
+            const positionRange = Object.entries(positionRanges).find(([_, positions]) => 
+                positions.includes(tp.position)
+            );
+            const rangeIndex = teams.length + Object.keys(positionRanges).indexOf(positionRange[0]);
+            
+            return {
+                source: teamIndex,
+                target: rangeIndex,
+                value: 1,
+                driver: tp.driver
+            };
+        });
+
+        const response = { nodes, links };
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching team positions:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch team positions',
+            details: error.message
+        });
+    }
+});
+
+// Race results endpoint
+app.get('/api/race-results', async (req, res) => {
+    const { driverId, year, round } = req.query;
+    
+    if (!driverId || !year) {
+        return res.status(400).json({ error: 'Driver ID and year are required' });
+    }
+
+    try {
+        const url = `http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json`;
+        const { data } = await axios.get(url);
+        
+        const races = data.MRData.RaceTable.Races;
+        if (!races || races.length === 0) {
+            return res.status(404).json({ error: 'No race results found' });
+        }
+
+        let raceResult;
+        if (round) {
+            // Find the specific race by round number
+            const specificRace = races.find(race => race.round === round.toString());
+            if (!specificRace) {
+                return res.status(404).json({ error: 'Race round not found' });
+            }
+            raceResult = specificRace;
+        }
+        
+        const result = raceResult.Results[0];
+        res.json({
+            position: result.position,
+            positionText: result.positionText,
+            points: result.points,
+
+        });
+    } catch (error) {
+        console.error('Error fetching race results:', error);
+        res.status(500).json({ error: 'Failed to fetch race results' });
+    }
+});
+
+// Team stats endpoint
+app.get('/api/team-stats', async (req, res) => {
+    const { constructorId, year = new Date().getFullYear() } = req.query;
+    
+    if (!constructorId) {
+        return res.status(400).json({ error: 'Constructor ID is required' });
+    }
+
+    try {
+        const url = `http://api.jolpi.ca/ergast/f1/${year}/constructors/${constructorId}/results.json`;
+        const { data } = await axios.get(url);
+        
+        const races = data.MRData.RaceTable.Races;
+        if (!races.length) {
+            return res.status(404).json({ error: 'No results found for team' });
+        }
+
+        const results = races.flatMap(race => race.Results);
+        console.log(races)
+        const stats = {
+            totalPoints: results.reduce((sum, result) => sum + parseFloat(result.points), 0),
+            wins: results.filter(result => result.position === '1').length,
+            podiums: results.filter(result => parseInt(result.position) <= 3).length,
+            dnfs: results.filter(result => result.positionText === 'R').length,
+            averageFinish: results.reduce((sum, result) => 
+                sum + (result.positionText === 'R' ? 20 : parseInt(result.position)), 0) / results.length,
+            reliability: 1 - (results.filter(result => result.positionText === 'R').length / (results.length * 2)),
+            performance: results.reduce((sum, result) => 
+                sum + (21 - (result.positionText === 'R' ? 20 : parseInt(result.position))), 0) / (results.length * 20)
+        };
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching team stats:', error);
+        res.status(500).json({ error: 'Failed to fetch team stats' });
     }
 });
 
