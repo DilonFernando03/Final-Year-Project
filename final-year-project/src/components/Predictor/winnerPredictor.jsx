@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
 import Predictor from '../../lib/predictor';
+import './predictor.css';
 
 const WinnerPredictor = () => {
   const [nextRace, setNextRace] = useState(null);
@@ -91,7 +92,7 @@ const WinnerPredictor = () => {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
+        <CardTitle className="predictor-header text-lg font-semibold">
           Race Winner Prediction: {nextRace?.name} {nextRace?.season}
         </CardTitle>
       </CardHeader>
@@ -119,7 +120,7 @@ const WinnerPredictor = () => {
           </Button>
 
           {prediction && (
-            <div className="mt-6 space-y-4">
+            <div className="predicted-section mt-6 space-y-4">
               <div className="space-y-3">
                 <h3 className="font-semibold text-lg">Top 3 Predictions:</h3>
                 {prediction.predictions?.map((pred, index) => (

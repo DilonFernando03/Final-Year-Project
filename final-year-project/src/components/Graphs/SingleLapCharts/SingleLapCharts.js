@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Plot from 'react-plotly.js';
-import Speedometer from './Speedometer';
 import './SingleLapCharts.css';
 
 function SingleLapCharts({ 
@@ -137,14 +136,19 @@ function SingleLapCharts({
         t: 30,
         b: 40
       },
+      paper_bgcolor: 'black',
+      plot_bgcolor: 'black',
       font: {
-        size: 10 
+        size: 10,
+        color: 'white'
       },
       yaxis: {
-        tickfont: { size: 9 }
+        tickfont: { size: 9, color: 'white' },
+        gridcolor: '#333'
       },
       xaxis: {
-        tickfont: { size: 9 }
+        tickfont: { size: 9, color: 'white' },
+        gridcolor: '#333'
       }
     };
 

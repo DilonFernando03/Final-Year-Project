@@ -190,7 +190,7 @@ function Dashboard() {
 
       <header>
         {meetingOfficialName && (
-          <h1 className="meeting-title">{meetingOfficialName}</h1>
+          <h1 className="meeting-title" style={{color:" rgb(255, 255, 255)"}}>{meetingOfficialName}</h1>
         )}
         
         <div className="controls-container">

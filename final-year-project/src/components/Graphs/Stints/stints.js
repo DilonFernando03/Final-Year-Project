@@ -182,8 +182,8 @@ function Stints({ sessionKey, meetingKey }) {
           family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         }
       },
-      plot_bgcolor: 'white',
-      paper_bgcolor: 'white',
+      plot_bgcolor: 'black',
+      paper_bgcolor: '#131313',
       height: chartHeight,
       margin: {
         l: 150, // Increased left margin for longer driver names

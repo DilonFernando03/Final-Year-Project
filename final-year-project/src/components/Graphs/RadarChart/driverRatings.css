@@ -3,7 +3,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: #131313;
   border-radius: 0.5rem;
   transition: all 0.3s ease;
 }
@@ -21,7 +21,7 @@
     font-size: 0.9rem;
     font-weight: 600;
     margin: 0;
-    color: #333;
+    color: #f3f3f3;
     padding: 0.25rem;
     border-bottom: 1px solid #eee;
   }
@@ -47,7 +47,7 @@
   }
   
   .loading {
-    color: #6b7280;
+    color: #ececec;
     position: relative;
   }
   

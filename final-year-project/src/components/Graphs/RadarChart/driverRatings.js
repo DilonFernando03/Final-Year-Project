@@ -107,7 +107,7 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
           driverStats.primary.awareness,
           driverStats.primary.pace
         ],
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         borderColor: 'rgb(54, 162, 235)',
         borderWidth: 2,
         fill: true
@@ -153,11 +153,11 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
         r: {
           angleLines: { 
             display: true, 
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: 'rgba(255, 255, 255, 0.1)'
           },
           grid: { 
             circular: true, 
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: 'rgba(255, 255, 255, 0.1)'
           },
           min: minValue,
           max: maxValue,

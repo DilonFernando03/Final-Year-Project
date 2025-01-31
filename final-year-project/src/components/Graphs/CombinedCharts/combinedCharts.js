@@ -58,8 +58,8 @@ function CombinedCharts({
                 key={driver}
                 className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
                 style={{
-                  backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'lightgray',
-                  color: selectedDrivers.includes(driver) ? 'white' : 'black'
+                  backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'black',
+                  color: selectedDrivers.includes(driver) ? 'white' : driverColors[driver]
                 }}
                 onClick={() => toggleDriverSelection(driver)}
               >
