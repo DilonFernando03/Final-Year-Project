@@ -27,3 +27,20 @@
     border-style: solid;
     border-color: transparent transparent rgba(0, 0, 0, 0.9) transparent;
   }
+
+  /* Driver Image Wrapper */
+.driver-image-wrapper {
+  position: relative;
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  overflow: visible;
+  z-index: 10;
+}
+
+.driver-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}

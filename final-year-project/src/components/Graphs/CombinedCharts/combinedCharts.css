@@ -13,6 +13,13 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
+.driver-selection-heading {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0 0.25rem;
+  font-weight: 500;
+}
 
 .charts-row {
   display: flex;

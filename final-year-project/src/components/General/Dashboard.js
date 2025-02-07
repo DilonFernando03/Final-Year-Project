@@ -194,11 +194,6 @@ function Dashboard() {
         )}
         
         <div className="controls-container">
-            {allSelectionsComplete && (
-              <div className="top-three-container">
-                <TopDrivers year={year} raceName={race} />
-              </div>
-            )}
             
             <div className="controls-row">
               <YearDropdown 
@@ -215,6 +210,12 @@ function Dashboard() {
                 disabled={!year || !race} 
               />
             </div>
+
+            {allSelectionsComplete && (
+              <div className="top-three-container">
+                <TopDrivers year={year} raceName={race} />
+              </div>
+            )}
             
             {allSelectionsComplete && (
               <div className="weather">

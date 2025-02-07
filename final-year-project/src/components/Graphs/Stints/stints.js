@@ -5,34 +5,46 @@ import './stints.css';
 function Stints({ sessionKey, meetingKey }) {
   const [allDriverStints, setAllDriverStints] = useState({});
   const [allDrivers, setAllDrivers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const fetchWithRetry = async (url, retries = 3, baseDelay = 1000) => {
+  const fetchWithRetry = async (url, retries = 5, baseDelay = 2000) => {
+    let lastError;
+    
     for (let i = 0; i < retries; i++) {
       try {
         const response = await fetch(url);
         if (!response.ok) {
           if (response.status === 429) {
-            await delay(baseDelay * Math.pow(2, i));
+            // Exponential backoff for rate limiting
+            const waitTime = baseDelay * Math.pow(2, i);
+            await delay(waitTime);
             continue;
           }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return await response.json();
       } catch (error) {
-        if (i === retries - 1) throw error;
-        await delay(baseDelay * Math.pow(2, i));
+        lastError = error;
+        if (i === retries - 1) break;
+        
+        // Exponential backoff for all errors
+        const waitTime = baseDelay * Math.pow(2, i);
+        await delay(waitTime);
       }
     }
+    throw lastError;
   };
 
-  // Fetch all drivers first
+  // Fetch all drivers first with improved error handling
   useEffect(() => {
     const fetchDrivers = async () => {
       if (!sessionKey || !meetingKey) return;
       
       try {
+        setIsLoading(true);
         const response = await fetchWithRetry(
           `https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`
         );
@@ -45,35 +57,55 @@ function Stints({ sessionKey, meetingKey }) {
         setAllDrivers(drivers);
       } catch (error) {
         console.error('Error fetching drivers:', error);
+        setError('Failed to fetch drivers data');
       }
     };
 
     fetchDrivers();
   }, [sessionKey, meetingKey]);
 
-  // Fetch stints for each driver
+  // Fetch stints for each driver with chunking and rate limiting
   useEffect(() => {
     const fetchAllStints = async () => {
       if (!allDrivers.length) return;
 
       const newStints = {};
+      const chunks = [];
+      const chunkSize = 5; // Process 5 drivers at a time
       
-      for (const driver of allDrivers) {
-        try {
-          await delay(500); // Rate limiting
-          const stintsData = await fetchWithRetry(
-            `https://api.openf1.org/v1/stints?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driver.number}`
-          );
-          
-          if (stintsData && stintsData.length > 0) {
-            newStints[driver.name] = stintsData;
-          }
-        } catch (error) {
-          console.error(`Error fetching stints for ${driver.name}:`, error);
-        }
+      // Split drivers into chunks
+      for (let i = 0; i < allDrivers.length; i += chunkSize) {
+        chunks.push(allDrivers.slice(i, i + chunkSize));
       }
-
-      setAllDriverStints(newStints);
+      
+      try {
+        // Process each chunk with delay between chunks
+        for (const chunk of chunks) {
+          await Promise.all(chunk.map(async (driver) => {
+            try {
+              const stintsData = await fetchWithRetry(
+                `https://api.openf1.org/v1/stints?meeting_key=${meetingKey}&session_key=${sessionKey}&driver_number=${driver.number}`
+              );
+              
+              if (stintsData && stintsData.length > 0) {
+                newStints[driver.name] = stintsData;
+              }
+            } catch (error) {
+              console.error(`Error fetching stints for ${driver.name}:`, error);
+            }
+          }));
+          
+          // Delay between chunks to avoid rate limiting
+          await delay(2000);
+        }
+        
+        setAllDriverStints(newStints);
+      } catch (error) {
+        console.error('Error fetching stints:', error);
+        setError('Failed to fetch stint data');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchAllStints();
@@ -90,10 +122,10 @@ function Stints({ sessionKey, meetingKey }) {
     );
     const xAxisMax = Math.ceil(maxLap * 1.05);
 
-    const MAX_CHART_HEIGHT = 600; // Increased for more drivers
+    const MIN_HEIGHT_PER_DRIVER = 20; // Minimum height per driver
     const numDrivers = driversWithData.length;
-    const maxBarWidth = Math.max(10, Math.min(20, Math.floor(MAX_CHART_HEIGHT / numDrivers)));
-    const chartHeight = Math.min(MAX_CHART_HEIGHT, Math.max(120, 30 * numDrivers));
+    const calculatedHeight = Math.max(500, numDrivers * MIN_HEIGHT_PER_DRIVER); // Ensure minimum height
+    const maxBarWidth = 10;
 
     const data = driversWithData.flatMap((driverName, driverIndex) => {
       const driverStints = allDriverStints[driverName] || [];
@@ -152,7 +184,8 @@ function Stints({ sessionKey, meetingKey }) {
         text: 'Pit Strategy - All Drivers',
         font: {
           size: 16,
-          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          color: 'white'
         }
       },
       xaxis: {
@@ -160,14 +193,16 @@ function Stints({ sessionKey, meetingKey }) {
           text: 'Lap Numbers',
           font: {
             size: 12,
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            color: 'white'
           }
         },
         range: [0, xAxisMax],
         showgrid: true,
-        gridcolor: '#E5E5E5',
+        gridcolor: '#333333',
         zeroline: false,
-        dtick: 9
+        dtick: 5,
+        color: 'white'
       },
       yaxis: {
         showticklabels: true,
@@ -178,15 +213,17 @@ function Stints({ sessionKey, meetingKey }) {
         zeroline: false,
         fixedrange: true,
         tickfont: {
-          size: Math.min(12, maxBarWidth - 2),
-          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          size: 12,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          color: 'white'
         }
       },
       plot_bgcolor: 'black',
       paper_bgcolor: '#131313',
-      height: chartHeight,
+      height: calculatedHeight,
+      autosize: true,
       margin: {
-        l: 150, // Increased left margin for longer driver names
+        l: 150, // Left margin for driver names
         r: 20,
         t: 40,
         b: 40
@@ -203,7 +240,8 @@ function Stints({ sessionKey, meetingKey }) {
 
     const config = {
       displayModeBar: false,
-      responsive: true
+      responsive: true,
+      scrollZoom: false // Disable scroll zoom to prevent accidental zooming
     };
 
     return (
@@ -212,13 +250,27 @@ function Stints({ sessionKey, meetingKey }) {
         layout={layout}
         config={config}
         className="stint-plot"
-        style={{ maxHeight: MAX_CHART_HEIGHT }}
+        style={{
+          width: '100%',
+          height: '100%',
+          minHeight: calculatedHeight
+        }}
       />
     );
   };
 
   return (
-    <div className="stints-container">
+    <div className="stints-container" style={{
+      width: '100%',
+      height: 'auto',
+      minHeight: '500px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgb(19, 19, 19)',
+      padding: '1rem',
+      position: 'relative'
+    }}>
       {renderPlot()}
     </div>
   );

@@ -24,12 +24,12 @@
 }
 
 .sector-charts {
-  display: flex;
-  justify-content: center;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
   width: 100%;
+  padding: 1rem;
   overflow-x: auto;
-  padding: 10px 0;
 }
 
 

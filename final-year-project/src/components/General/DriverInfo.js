@@ -38,7 +38,7 @@ function DriverRaceInfo({ sessionKey, meetingKey, driverNumber, year, round }) {
         const driversData = await driversResponse.json();
         
         // Find the driver with matching number
-        const driver = driversData.find(d => d.number === driverNumber.toString());
+        const driver = driversData.find(d => d.number === driverNumber);
         if (!driver) {
           throw new Error('Driver not found in current season');
         }

@@ -47,75 +47,81 @@ class Predictor {
 
   async getDriverHistory(driver, nextRace) {
     if (!nextRace || !nextRace.circuitId) {
-      console.warn('No circuit information provided for driver history');
-      return this.getDefaultHistory();
+        console.warn('No circuit information provided for driver history');
+        return this.getDefaultHistory();
     }
-    console.log(driver.driverId)
+
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/driver-history?` + 
-        `driverId=${encodeURIComponent(driver.driverId)}&` +
-        `circuitId=${encodeURIComponent(nextRace.circuitId)}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch history for ${driver.name}`);
-      }
-      
-      const data = await response.json();
-      return {
-        trackWins: data.trackWins || 0,
-        trackPodiums: data.trackPodiums || 0,
-        recentForm: this.processRecentResults(data.recentResults || []),
-        avgFinishPosition: this.calculateAverageFinish(data.recentResults || []),
-        dnfRate: data.dnfs / (data.recentResults?.length || 1)
-      };
-
-
+        // Ensure driverId is treated as a number
+        const driverNum = parseInt(driver.number);
+        if (isNaN(driverNum)) {
+            console.warn(`Invalid driver ID: ${driver.driverId}`);
+            return this.getDefaultHistory();
+        }
+        const response = await fetch(
+            `http://localhost:5000/api/driver-history?` + 
+            `driverId=${encodeURIComponent(driver.driverId)}&` +
+            `driverNum=${encodeURIComponent(driverNum)}&` +
+            `circuitId=${encodeURIComponent(nextRace.circuitId)}`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch history for ${driver.name}`);
+        }
+        
+        const data = await response.json();
+        return {
+            trackWins: data.trackWins || 0,
+            trackPodiums: data.trackPodiums || 0,
+            recentForm: this.processRecentResults(data.recentResults || []),
+            avgFinishPosition: this.calculateAverageFinish(data.recentResults || []),
+            dnfRate: data.dnfs / (data.recentResults?.length || 1)
+        };
     } catch (error) {
-      console.error('Driver history error:', error);
-      return this.getDefaultHistory();
+        console.error('Driver history error:', error);
+        return this.getDefaultHistory();
     }
-  }
+}
 
-  getDefaultHistory() {
+async getCurrentSeasonStats(driver) {
+    try {
+        // Ensure driverId is treated as a number
+        const driverId = driver.driverId;
+        if (!driverId) {
+            console.warn(`Invalid driver ID: ${driver.driverId}`);
+            return this.getDefaultSeasonStats();
+        }
+
+        const response = await fetch(
+            `http://localhost:5000/api/season-stats?driverId=${encodeURIComponent(driverId)}`
+        );
+        if (!response.ok) throw new Error(`Failed to fetch stats for ${driver.name}`);
+        
+        const data = await response.json();
+        return {
+            points: data.points || 0,
+            podiums: data.podiums || 0,
+            wins: data.wins || 0,
+            dnfs: data.dnfs || 0,
+            averageFinish: data.averageFinish || 10,
+            momentum: this.calculateMomentum(data.recentResults || [])
+        };
+    } catch (error) {
+        console.error('Season stats error:', error);
+        return this.getDefaultSeasonStats();
+    }
+}
+
+getDefaultSeasonStats() {
     return {
-      trackWins: 0,
-      trackPodiums: 0,
-      recentForm: [0,0,0,0,0],
-      avgFinishPosition: 10,
-      dnfRate: 0.1
-    };
-  }
-
-  async getCurrentSeasonStats(driver) {
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/season-stats?driverId=${encodeURIComponent(driver.driverId)}`
-      );
-      if (!response.ok) throw new Error(`Failed to fetch stats for ${driver.name}`);
-      
-      const data = await response.json();
-      return {
-        points: data.points || 0,
-        podiums: data.podiums || 0,
-        wins: data.wins || 0,
-        dnfs: data.dnfs || 0,
-        averageFinish: data.averageFinish || 10,
-        momentum: this.calculateMomentum(data.recentResults || [])
-      };
-    } catch (error) {
-      console.error('Season stats error:', error);
-      return {
         points: 0,
         podiums: 0,
         wins: 0,
         dnfs: 0,
         averageFinish: 10,
         momentum: 0
-      };
-    }
-  }
+    };
+}
 
   async getCarPerformance(team) {
     const teamIds = {
@@ -141,7 +147,7 @@ class Predictor {
       if (!response.ok) throw new Error('Failed to fetch team stats');
       
       const stats = await response.json();
-      
+      console.log(stats)
       return {
         reliability: stats.reliability,
         speed: stats.performance,
@@ -194,16 +200,6 @@ class Predictor {
     };
   }
 
-  normalizeWeather(weather) {
-    return {
-      temperature: ((weather.temperature || 25) - 20) / 30,
-      humidity: (weather.humidity || 60) / 100,
-      rain_probability: (weather.rain_probability || 20) / 100,
-      wind_speed: (weather.wind_speed || 15) / 50,
-      track_temperature: ((weather.track_temperature || 30) - 25) / 35,
-      weather_change_likelihood: (weather.weather_change_likelihood || 0) / 100
-    };
-  }
 
   processRecentResults(results) {
     return results.map(result => result === 'DNF' ? 20 : result).slice(-5);
@@ -231,11 +227,10 @@ class Predictor {
       const features = [];
       for (const driver of this.drivers) {
         const history = await this.getDriverHistory(driver, raceData.nextRace);
-        console.log(history)
         const seasonStats = await this.getCurrentSeasonStats(driver);
         const carPerf = this.getCarPerformance(driver.team);
         const circuitFactors = this.getCircuitFactors(raceData.nextRace?.trackName);
-        const weather = this.normalizeWeather(raceData.weather || {});
+
 
         const driverFeatures = [
           // Historical Performance (5 features)
@@ -257,11 +252,6 @@ class Predictor {
           carPerf.speed,
           carPerf.cornering,
           carPerf.tires,
-
-          // Weather Impact (3 features)
-          weather.temperature,
-          weather.rain_probability,
-          weather.track_temperature,
 
           // Circuit Specific (3 features)
           1 - circuitFactors.overtakingDifficulty,
@@ -296,7 +286,7 @@ class Predictor {
       .orderBy(['probability'], ['desc'])
       .take(3)
       .value();
-
+    console.log(top3)
     return {
       predictions: top3,
       factors: this.analyzeFactors(),

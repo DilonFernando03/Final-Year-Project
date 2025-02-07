@@ -4,8 +4,10 @@ import SingleLapCharts from '../SingleLapCharts/SingleLapCharts';
 import './combinedCharts.css';
 
 function CombinedCharts({ 
-  primaryDriver,sessionKey, meetingKey, lap, availableLaps, onLapChange,selectedDrivers, setSelectedDrivers, driverColors }) {
+  primaryDriver, sessionKey, meetingKey, lap, availableLaps, onLapChange, selectedDrivers, setSelectedDrivers, driverColors 
+}) {
   const [drivers, setDrivers] = useState([]);
+  const MAX_DRIVERS = 4;
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -14,11 +16,10 @@ function CombinedCharts({
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           
-          const driverData = data.map((driver) => driver.full_name);
-          const colors = {};
-          data.forEach(driver => {
-            colors[driver.full_name] = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
-          });
+          // Filter out the primary driver and map to names
+          const driverData = data
+            .map((driver) => driver.full_name)
+            .filter(name => name !== primaryDriver);
 
           setDrivers(driverData);
         } catch (error) {
@@ -28,14 +29,18 @@ function CombinedCharts({
     };
 
     fetchDriverData();
-  }, [sessionKey, meetingKey]);
+  }, [sessionKey, meetingKey, primaryDriver]);
 
   const toggleDriverSelection = (driver) => {
-    setSelectedDrivers((prevSelected) =>
-      prevSelected.includes(driver)
-        ? prevSelected.filter(d => d !== driver)
-        : [...prevSelected, driver]
-    );
+    setSelectedDrivers((prevSelected) => {
+      if (prevSelected.includes(driver)) {
+        return prevSelected.filter(d => d !== driver);
+      }
+      if (prevSelected.length >= MAX_DRIVERS) {
+        return prevSelected;
+      }
+      return [...prevSelected, driver];
+    });
   };
 
   const formatDriverName = (name) => {
@@ -48,23 +53,25 @@ function CombinedCharts({
 
   return (
     <div className="combined-charts-container">
-      {/* Shared Driver Selection Buttons */}
+      {/* Shared Driver Selection Controls */}
       <div className="shared-controls">
+        <h3 className="driver-selection-heading">Select drivers to visualize against {primaryDriver} (up to 4 drivers)</h3>
         <div className="mini-buttons-container">
-          {drivers
-            .filter(driver => driver !== primaryDriver)
-            .map((driver) => (
-              <button
-                key={driver}
-                className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
-                style={{
-                  backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'black',
-                  color: selectedDrivers.includes(driver) ? 'white' : driverColors[driver]
-                }}
-                onClick={() => toggleDriverSelection(driver)}
-              >
-                {formatDriverName(driver)}
-              </button>
+          {drivers.map((driver) => (
+            <button
+              key={driver}
+              className={`mini-button ${selectedDrivers.includes(driver) ? 'selected' : ''}`}
+              style={{
+                backgroundColor: selectedDrivers.includes(driver) ? driverColors[driver] : 'black',
+                color: selectedDrivers.includes(driver) ? 'white' : driverColors[driver],
+                opacity: selectedDrivers.length >= MAX_DRIVERS && !selectedDrivers.includes(driver) ? 0.5 : 1,
+                cursor: selectedDrivers.length >= MAX_DRIVERS && !selectedDrivers.includes(driver) ? 'not-allowed' : 'pointer'
+              }}
+              onClick={() => toggleDriverSelection(driver)}
+              disabled={selectedDrivers.length >= MAX_DRIVERS && !selectedDrivers.includes(driver)}
+            >
+              {formatDriverName(driver)}
+            </button>
           ))}
         </div>
       </div>

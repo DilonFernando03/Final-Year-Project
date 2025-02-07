@@ -41,17 +41,17 @@ const WinnerPredictor = () => {
         const driversResponse = await fetch(
           `http://localhost:5000/api/current-drivers?season=${raceData.season}`
         );
+        console.log(raceData.season)
         if (!driversResponse.ok) {
           throw new Error(`Failed to fetch drivers: ${driversResponse.statusText}`);
         }
         const driversData = await driversResponse.json();
-        
         if (!driversData || !driversData.length) {
           throw new Error('No drivers data available');
         }
 
         setCurrentDrivers(driversData);
-
+        console.log(driversData)
         // Initialize predictor with drivers
         predictor.current = new Predictor();
         await predictor.current.initialize(driversData);

@@ -5,7 +5,7 @@ const cors = require('cors');
 const { Round } = require('@tensorflow/tfjs');
 const Papa = require('papaparse');
 const fs = require('fs').promises;
-
+const path = require('path');
 const app = express();
 const PORT = 5000;
 
@@ -24,13 +24,14 @@ let dataStore = {
     lapTimes: [],
     pitStops: [],
     sprintResults: [],
-    status: []
+    status: [],
+    podiumCache: []
 };
 
 // Load CSV data function
 async function loadCSVData() {
     try {
-        const basePath = 'C:/Users/Gamer X/Documents/Github/Final-Year-Project/final-year-project/src/dataset';
+        const basePath = '../../dataset/';
         const files = {
             drivers: `${basePath}/drivers.csv`,
             races: `${basePath}/races.csv`,
@@ -43,7 +44,7 @@ async function loadCSVData() {
             lapTimes: `${basePath}/lap_times.csv`,
             pitStops: `${basePath}/pit_stops.csv`,
             sprintResults: `${basePath}/sprint_results.csv`,
-            status: `${basePath}/status.csv`
+            status: `${basePath}/status.csv`,
         };
 
         for (const [key, filename] of Object.entries(files)) {
@@ -63,10 +64,41 @@ async function loadCSVData() {
     }
 }
 
+// Loading podium data
+async function loadPodiumCache() {
+    try {
+        const podiumCachePath = path.join(__dirname, '../../dataset/podium.csv');
+        try {
+            const fileContent = await fs.readFile(podiumCachePath, 'utf-8');
+            const parsed = Papa.parse(fileContent, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true
+            });
+            dataStore.podiumCache = parsed.data;
+            console.log('Podium cache loaded successfully');
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                // Create empty cache file if it doesn't exist
+                const headers = 'driver_number,year,headshot_url,team_colour,full_name\n';
+                await fs.writeFile(podiumCachePath, headers);
+                console.log('Created new podium cache file');
+                dataStore.podiumCache = [];
+            } else {
+                throw error;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading podium cache:', error);
+        throw error;
+    }
+}
+
 // Initialize data loading on server start
 (async () => {
     try {
         await loadCSVData();
+        await loadPodiumCache();
     } catch (error) {
         console.error('Failed to initialize data store:', error);
     }
@@ -89,7 +121,69 @@ function getRaceResults(year, round = null) {
     return { race, results };
 }
 
-// Modified endpoints to use local data first
+app.post('/api/check-podium-cache', express.json(), async (req, res) => {
+    const { driverNumber, year } = req.body;
+    
+    try {
+        const cachedRecord = dataStore.podiumCache.find(record => 
+            record.driver_number === parseInt(driverNumber) && 
+            record.year === parseInt(year)
+        );
+        
+        if (cachedRecord) {
+            return res.json({
+                cached: true,
+                driverInfo: cachedRecord
+            });
+        }
+        return res.json({ cached: false });
+    } catch (error) {
+        console.error('Error checking podium cache:', error);
+        return res.json({ cached: false });
+    }
+});
+
+app.post('/api/save-podium-cache', express.json(), async (req, res) => {
+    try {
+        const podiumCachePath = path.join(__dirname, '../../dataset/podium.csv');
+        const newRecord = {
+            driver_number: parseInt(req.body.driver_number),
+            year: parseInt(req.body.year),
+            headshot_url: req.body.headshot_url,
+            team_colour: req.body.team_colour,
+            full_name: req.body.full_name
+        };
+
+        // Check if record already exists
+        const existingIndex = dataStore.podiumCache.findIndex(record => 
+            record.driver_number === newRecord.driver_number && 
+            record.year === newRecord.year
+        );
+
+        if (existingIndex === -1) {
+            // Add new record
+            dataStore.podiumCache.push(newRecord);
+            
+            // Write updated data to CSV
+            const csv = Papa.unparse(dataStore.podiumCache);
+            await fs.writeFile(podiumCachePath, csv);
+            
+            return res.json({ success: true });
+        }
+        
+        return res.json({ 
+            success: false, 
+            message: 'Record already exists' 
+        });
+    } catch (error) {
+        console.error('Error saving to podium cache:', error);
+        return res.json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 
 // Season stats endpoint
 app.get('/api/season-stats', async (req, res) => {
@@ -106,7 +200,6 @@ app.get('/api/season-stats', async (req, res) => {
             // Fallback to API if no local data
             const url = `http://api.jolpi.ca/ergast/f1/${season}/drivers/${driverId}/results.json`;
             const { data } = await axios.get(url);
-            // Process API data...
             return res.json(data);
         }
 
@@ -123,7 +216,6 @@ app.get('/api/season-stats', async (req, res) => {
                 });
             }
         }
-
         if (results.length === 0) {
             return res.status(404).json({ error: 'No results found for driver in this season' });
         }
@@ -146,40 +238,61 @@ app.get('/api/season-stats', async (req, res) => {
     }
 });
 
-// Driver history endpoint
+// Modified driver history endpoint
 app.get('/api/driver-history', async (req, res) => {
-    const { driverId, circuitId } = req.query;
-    if (!driverId || !circuitId) {
-        return res.status(400).json({ error: 'Driver ID and circuit ID are required' });
+    const {driverId, driverNum, circuitId } = req.query;
+    if (!driverId || !driverNum || !circuitId) {
+        return res.status(400).json({ error: 'Driver Number and circuit ID are required' });
     }
 
     try {
+        // First attempt to get data from local dataset
         const circuit = dataStore.circuits.find(c => 
             c.circuitRef.toLowerCase() === circuitId.replace(/-/g, '_').toLowerCase()
         );
 
         if (!circuit) {
-            return res.status(404).json({ error: 'Circuit not found' });
+            console.warn(`Circuit not found in local data: ${circuitId}`);
+            throw new Error('Circuit not found in local data');
         }
 
-        const races = dataStore.races.filter(r => r.circuitId === circuit.circuitId);
+        // Get all races for this circuit
+        const allRaces = dataStore.races.filter(r => r.circuitId === circuit.circuitId);
+        
+        if (allRaces.length === 0) {
+            console.warn(`No races found for circuit: ${circuitId}`);
+            throw new Error('No races found for circuit');
+        }
+
         let trackWins = 0;
         let trackPodiums = 0;
         let dnfs = 0;
         const recentResults = [];
+        const currentYear = new Date().getFullYear();
+        const driver = dataStore.drivers.find(d =>
+            d.number === parseInt(driverNum) &&
+            d.driverRef === driverId
+        )
 
-        for (const race of races) {
+ 
+        // Process local data
+        for (const race of allRaces) {
+            // Find result for this race and driver
             const result = dataStore.results.find(r => 
-                r.raceId === race.raceId && r.driverId === parseInt(driverId)
+                r.raceId === race.raceId && 
+                r.driverId === driver.driverId
             );
-
             if (result) {
+                // Parse position safely
                 const position = parseInt(result.position) || 20;
+                
+                // Update stats
                 if (position === 1) trackWins++;
                 if (position <= 3) trackPodiums++;
                 if (result.positionText === 'R') dnfs++;
 
-                if (race.year > new Date().getFullYear() - 6) {
+                // Only include results from last 5 years
+                if (race.year > currentYear - 6) {
                     recentResults.push({
                         year: race.year,
                         position: result.positionText === 'R' ? 'DNF' : position
@@ -188,21 +301,94 @@ app.get('/api/driver-history', async (req, res) => {
             }
         }
 
-        res.json({
+        // Sort and format recent results
+        const sortedResults = recentResults
+            .sort((a, b) => b.year - a.year)
+            .map(result => result.position);
+
+        const response = {
             trackWins,
             trackPodiums,
             dnfs,
-            recentResults: recentResults
-                .sort((a, b) => b.year - a.year)
-                .map(result => result.position)
-        });
+            recentResults: sortedResults
+        };
+
+        return res.json(response);
 
     } catch (error) {
         console.error('Error fetching driver history:', error);
-        res.status(500).json({ 
-            error: 'Failed to fetch driver history',
-            details: error.message 
-        });
+        
+        // If local data fetch failed, try API as fallback
+        try {
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 5;
+            const years = Array.from(
+                { length: 6 }, 
+                (_, i) => startYear + i
+            );
+            
+            const formattedCircuitId = circuitId.replace(/-/g, '_');
+            
+            const apiResults = await Promise.allSettled(
+                years.map(year => 
+                    axios.get(
+                        `http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json?limit=30`
+                    )
+                )
+            );
+
+            let trackWins = 0;
+            let trackPodiums = 0;
+            let dnfs = 0;
+            const recentResults = [];
+
+            apiResults.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    const year = years[index];
+                    const races = result.value.data.MRData.RaceTable.Races;
+                    
+                    const circuitRaces = races.filter(race => 
+                        race.Circuit?.circuitId?.toLowerCase() === formattedCircuitId.toLowerCase()
+                    );
+
+                    circuitRaces.forEach(race => {
+                        const raceResult = race.Results[0];
+                        if (raceResult) {
+                            const position = parseInt(raceResult.position);
+                            if (position === 1) trackWins++;
+                            if (position <= 3) trackPodiums++;
+                            if (raceResult.positionText === 'R') dnfs++;
+                            
+                            recentResults.push({
+                                year,
+                                position: raceResult.positionText === 'R' ? 'DNF' : position
+                            });
+                        }
+                    });
+                }
+            });
+
+            const sortedResults = recentResults
+                .sort((a, b) => b.year - a.year)
+                .map(result => result.position);
+
+            const response = {
+                trackWins,
+                trackPodiums,
+                dnfs,
+                recentResults: sortedResults
+            };
+
+            console.log('API fallback response:', response);
+            return res.json(response);
+
+        } catch (fallbackError) {
+            console.error('Fallback API error:', fallbackError);
+            return res.status(500).json({ 
+                error: 'Failed to fetch driver history from both local data and API',
+                details: error.message 
+            });
+        }
     }
 });
 
@@ -218,6 +404,7 @@ app.get('/api/team-stats', async (req, res) => {
         const constructor = dataStore.constructors.find(c => 
             c.constructorRef.toLowerCase() === constructorId.toLowerCase()
         );
+
 
         if (!constructor) {
             // Fallback to API
@@ -271,6 +458,7 @@ app.get('/api/race-results', async (req, res) => {
         const race = dataStore.races.find(r => 
             r.year === parseInt(year) && (!round || r.round === parseInt(round))
         );
+
 
         if (!race) {
             const url = `http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json`;
@@ -373,7 +561,7 @@ async function fetchDriversForSeason(season) {
     return data.MRData.DriverTable.Drivers.map(driver => ({
         name: `${driver.givenName} ${driver.familyName}`,
         number: driver.permanentNumber,
-        driverId: driver.driverId
+        driverId: driver.driverId,
     }));
 }
 
@@ -405,6 +593,53 @@ async function fetchNextRaceFromCalendar(season) {
     const now = new Date();
     return races.find(race => race.date > now);
 }
+
+// Driver details endpoint
+app.get('/api/driver-details', async (req, res) => {
+    const { driverName } = req.query;
+
+    if (!driverName) {
+        return res.status(400).json({ error: 'Driver name is required.' });
+    }
+
+    try {
+        const driverSlug = driverName.toLowerCase().replace(/\s+/g, '-');
+        const url = `https://www.formula1.com/en/drivers/${driverSlug}.html`;
+
+        const { data } = await axios.get(url);
+        const $ = cheerio.load(data);
+
+        // Target the specific grid container
+        const statsGrid = $('.grid.gap-x-normal.gap-y-xs.f1-grid');
+        const stats = {};
+
+        // Extract all dt/dd pairs from the grid
+        statsGrid.find('dt').each((index, element) => {
+            const label = $(element).text().trim();
+            const value = $(element).next('dd').text().trim();
+            
+            // Clean up the labels to use as keys
+            const key = label.toLowerCase()
+                           .replace(/^team$/, 'team')
+                           .replace(/^country$/, 'country')
+                           .replace(/^podiums$/, 'podiums')
+                           .replace(/^points$/, 'points')
+                           .replace(/^world championships$/, 'worldChampionships')
+                           .replace(/^highest race finish$/, 'highestFinish')
+                           .replace(/^highest grid position$/, 'highestGrid')
+                           .replace(/^date of birth$/, 'dateOfBirth')
+                           .replace(/^place of birth$/, 'birthplace')
+                           .replace(/^grands prix entered$/, 'grandsPrixEntered');
+
+            stats[key] = value;
+        });
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching driver details:', error.message);
+        res.status(500).json({ error: 'Failed to fetch driver details.' });
+    }
+});
 
 // Next race endpoint
 app.get('/api/next-race', async (req, res) => {
@@ -459,7 +694,9 @@ app.get('/api/top-three', async (req, res) => {
     const { year, raceName } = req.query;
 
     if (!year || !raceName) {
-        return res.status(400).json({ error: 'Year and raceName are required query parameters.' });
+        return res.status(400).json({ 
+            error: 'Year and raceName are required query parameters.' 
+        });
     }
 
     try {
@@ -474,8 +711,95 @@ app.get('/api/top-three', async (req, res) => {
             const raceUrl = `https://pitwall.app/races/${raceSlug}`;
             const { data } = await axios.get(raceUrl);
             const $ = cheerio.load(data);
-            // Rest of the original web scraping code...
-            return res.json({ topThree: [] }); // Replace with actual scraped data
+        
+            const topThree = [];
+            
+            // Find the race results table
+            const resultsTable = $('.race-results-table');
+            
+            // Get top 3 rows from the table
+            resultsTable.find('tr').slice(1, 4).each((index, element) => {
+                const position = $(element).find('.position').text().trim();
+                const driverName = $(element).find('.driver-name').text().trim();
+                const teamName = $(element).find('.constructor-name').text().trim();
+                const timeElement = $(element).find('.time');
+                const time = timeElement.length ? timeElement.text().trim() : '';
+
+                // Try to find driver number from the driver element
+                const driverNumberMatch = $(element)
+                    .find('.driver-number')
+                    .text()
+                    .trim()
+                    .match(/\d+/);
+                const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
+                
+                // Format data consistently with our database response
+                topThree.push({
+                    position: position,
+                    name: driverName,
+                    team: teamName,
+                    time: time,
+                    number: number
+                });
+            });
+            
+            // If no results found from scraping, try alternate table structure
+            if (topThree.length === 0) {
+                $('.results-summary .driver-result').slice(0, 3).each((index, element) => {
+                    const position = (index + 1).toString();
+                    const driverName = $(element).find('.driver-name').text().trim();
+                    const teamName = $(element).find('.team-name').text().trim();
+                    const timeElement = $(element).find('.time-gap');
+                    const time = timeElement.length ? timeElement.text().trim() : '';
+                    
+                    // Try to find driver number
+                    const driverNumberMatch = $(element)
+                        .find('.driver-number')
+                        .text()
+                        .trim()
+                        .match(/\d+/);
+                    const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
+        
+                    topThree.push({
+                        position: position,
+                        name: driverName,
+                        team: teamName,
+                        time: time,
+                        number: number
+                    });
+                });
+            }
+            
+            // Log what we found for debugging
+            console.log('Scraped top three:', topThree);
+            
+            // If we still have no results, try one more alternate structure
+            if (topThree.length === 0) {
+                $('.podium-results .podium-position').each((index, element) => {
+                    const position = (index + 1).toString();
+                    const driverName = $(element).find('.driver-name').text().trim();
+                    const teamName = $(element).find('.team-name').text().trim();
+                    const timeElement = $(element).find('.finishing-time');
+                    const time = timeElement.length ? timeElement.text().trim() : '';
+                    
+                    const driverNumberMatch = $(element)
+                        .find('.driver-number')
+                        .text()
+                        .trim()
+                        .match(/\d+/);
+                    const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
+        
+                    topThree.push({
+                        position: position,
+                        name: driverName,
+                        team: teamName,
+                        time: time,
+                        number: number
+                    });
+                });
+            }
+        
+            return res.json({ topThree });
         }
 
         const topThree = dataStore.results
@@ -490,7 +814,7 @@ app.get('/api/top-three', async (req, res) => {
                     name: driver ? `${driver.forename} ${driver.surname}` : 'Unknown Driver',
                     team: constructor?.name || 'Unknown Team',
                     time: result.time,
-                    number: driver?.number
+                    number: driver?.number || null // Ensure driver number is included
                 };
             });
 
@@ -519,18 +843,18 @@ app.get('/api/current-drivers', async (req, res) => {
 
         const latestRace = races[races.length - 1];
         const results = dataStore.results.filter(r => r.raceId === latestRace.raceId);
-        
         const currentDrivers = results.map(result => {
+            const constructor = dataStore.constructors.find(c => c.constructorId === result.constructorId);
             const driver = dataStore.drivers.find(d => d.driverId === result.driverId);
             return {
                 name: `${driver.forename} ${driver.surname}`,
                 number: driver.number,
-                driverId: driver.driverId
+                driverId: driver.driverId,
+                team : constructor.constructorId
             };
         });
-
         if (currentDrivers.length === 0) {
-            const drivers = await fetchDriversForSeason(seasonYear - 1);
+            const drivers = await fetchDriversForSeason(seasonYear);
             return res.json(drivers);
         }
 
