@@ -7,7 +7,7 @@ function CombinedCharts({
   primaryDriver, sessionKey, meetingKey, lap, availableLaps, onLapChange, selectedDrivers, setSelectedDrivers, driverColors 
 }) {
   const [drivers, setDrivers] = useState([]);
-  const MAX_DRIVERS = 4;
+  const MAX_DRIVERS = 3;
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -55,7 +55,7 @@ function CombinedCharts({
     <div className="combined-charts-container">
       {/* Shared Driver Selection Controls */}
       <div className="shared-controls">
-        <h3 className="driver-selection-heading">Select drivers to visualize against {primaryDriver} (up to 4 drivers)</h3>
+        <h3 className="driver-selection-heading">Select drivers to visualize against {primaryDriver} (up to 3 drivers)</h3>
         <div className="mini-buttons-container">
           {drivers.map((driver) => (
             <button

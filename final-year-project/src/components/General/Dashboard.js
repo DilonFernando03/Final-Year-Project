@@ -7,7 +7,6 @@ import './Dashboard.css';
 import WinnerPredictor from '../Predictor/winnerPredictor';
 import Stints from '../Graphs/Stints/stints';
 import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
-import PositionTimeline from '../Graphs/PositionTimeline/positionTimeline';
 import DriverRaceInfo from './DriverInfo';
 import DriverRatings from '../Graphs/RadarChart/driverRatings';
 import TeamPosition from '../Graphs/SankeyDiagram/TeamPosition';

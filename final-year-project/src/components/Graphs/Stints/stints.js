@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import './stints.css';
 
@@ -7,8 +7,28 @@ function Stints({ sessionKey, meetingKey }) {
   const [allDrivers, setAllDrivers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const containerRef = useRef(null);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
 
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Add resize observer to track container dimensions
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setContainerDimensions({ width, height });
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   const fetchWithRetry = async (url, retries = 5, baseDelay = 2000) => {
     let lastError;
@@ -18,7 +38,6 @@ function Stints({ sessionKey, meetingKey }) {
         const response = await fetch(url);
         if (!response.ok) {
           if (response.status === 429) {
-            // Exponential backoff for rate limiting
             const waitTime = baseDelay * Math.pow(2, i);
             await delay(waitTime);
             continue;
@@ -29,8 +48,6 @@ function Stints({ sessionKey, meetingKey }) {
       } catch (error) {
         lastError = error;
         if (i === retries - 1) break;
-        
-        // Exponential backoff for all errors
         const waitTime = baseDelay * Math.pow(2, i);
         await delay(waitTime);
       }
@@ -38,7 +55,7 @@ function Stints({ sessionKey, meetingKey }) {
     throw lastError;
   };
 
-  // Fetch all drivers first with improved error handling
+  // Fetch drivers
   useEffect(() => {
     const fetchDrivers = async () => {
       if (!sessionKey || !meetingKey) return;
@@ -64,22 +81,20 @@ function Stints({ sessionKey, meetingKey }) {
     fetchDrivers();
   }, [sessionKey, meetingKey]);
 
-  // Fetch stints for each driver with chunking and rate limiting
+  // Fetch stints
   useEffect(() => {
     const fetchAllStints = async () => {
       if (!allDrivers.length) return;
 
       const newStints = {};
       const chunks = [];
-      const chunkSize = 5; // Process 5 drivers at a time
+      const chunkSize = 5;
       
-      // Split drivers into chunks
       for (let i = 0; i < allDrivers.length; i += chunkSize) {
         chunks.push(allDrivers.slice(i, i + chunkSize));
       }
       
       try {
-        // Process each chunk with delay between chunks
         for (const chunk of chunks) {
           await Promise.all(chunk.map(async (driver) => {
             try {
@@ -94,8 +109,6 @@ function Stints({ sessionKey, meetingKey }) {
               console.error(`Error fetching stints for ${driver.name}:`, error);
             }
           }));
-          
-          // Delay between chunks to avoid rate limiting
           await delay(2000);
         }
         
@@ -122,9 +135,15 @@ function Stints({ sessionKey, meetingKey }) {
     );
     const xAxisMax = Math.ceil(maxLap * 1.05);
 
-    const MIN_HEIGHT_PER_DRIVER = 20; // Minimum height per driver
+    // Calculate height based on container and number of drivers
+    const MIN_HEIGHT_PER_DRIVER = 20;
     const numDrivers = driversWithData.length;
-    const calculatedHeight = Math.max(500, numDrivers * MIN_HEIGHT_PER_DRIVER); // Ensure minimum height
+    const availableHeight = containerDimensions.height || 300;
+    const calculatedHeight = Math.min(
+      availableHeight,
+      Math.max(300, numDrivers * MIN_HEIGHT_PER_DRIVER)
+    );
+    
     const maxBarWidth = 10;
 
     const data = driversWithData.flatMap((driverName, driverIndex) => {
@@ -146,36 +165,35 @@ function Stints({ sessionKey, meetingKey }) {
 
         const yPosition = driversWithData.length - driverIndex;
 
-        const bar = {
-          type: 'scatter',
-          mode: 'lines',
-          x: [stint.lap_start, stint.lap_end],
-          y: [yPosition, yPosition],
-          line: {
-            color: color,
-            width: maxBarWidth
+        return [
+          {
+            type: 'scatter',
+            mode: 'lines',
+            x: [stint.lap_start, stint.lap_end],
+            y: [yPosition, yPosition],
+            line: {
+              color: color,
+              width: maxBarWidth
+            },
+            hoverinfo: 'text',
+            hovertext: `${driverName}<br>Laps: ${stint.lap_start} - ${stint.lap_end}<br>Compound: ${stint.compound}`,
+            showlegend: false
           },
-          hoverinfo: 'text',
-          hovertext: `${driverName}<br>Laps: ${stint.lap_start} - ${stint.lap_end}<br>Compound: ${stint.compound}`,
-          showlegend: false
-        };
-
-        const text = {
-          type: 'scatter',
-          mode: 'text',
-          x: [(stint.lap_start + stint.lap_end) / 2],
-          y: [yPosition],
-          text: [compoundLetter],
-          textfont: {
-            size: Math.min(12, maxBarWidth - 4),
-            color: 'white',
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-          },
-          hoverinfo: 'none',
-          showlegend: false
-        };
-
-        return [bar, text];
+          {
+            type: 'scatter',
+            mode: 'text',
+            x: [(stint.lap_start + stint.lap_end) / 2],
+            y: [yPosition],
+            text: [compoundLetter],
+            textfont: {
+              size: Math.min(12, maxBarWidth - 4),
+              color: 'white',
+              family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            },
+            hoverinfo: 'none',
+            showlegend: false
+          }
+        ];
       });
     });
 
@@ -223,7 +241,7 @@ function Stints({ sessionKey, meetingKey }) {
       height: calculatedHeight,
       autosize: true,
       margin: {
-        l: 150, // Left margin for driver names
+        l: 150,
         r: 20,
         t: 40,
         b: 40
@@ -241,7 +259,7 @@ function Stints({ sessionKey, meetingKey }) {
     const config = {
       displayModeBar: false,
       responsive: true,
-      scrollZoom: false // Disable scroll zoom to prevent accidental zooming
+      scrollZoom: false
     };
 
     return (
@@ -249,28 +267,16 @@ function Stints({ sessionKey, meetingKey }) {
         data={data}
         layout={layout}
         config={config}
-        className="stint-plot"
         style={{
           width: '100%',
-          height: '100%',
-          minHeight: calculatedHeight
+          height: '100%'
         }}
       />
     );
   };
 
   return (
-    <div className="stints-container" style={{
-      width: '100%',
-      height: 'auto',
-      minHeight: '500px',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'rgb(19, 19, 19)',
-      padding: '1rem',
-      position: 'relative'
-    }}>
+    <div ref={containerRef} className="stints-container" style={{ width: '100%', height: '100%' }}>
       {renderPlot()}
     </div>
   );

@@ -153,11 +153,11 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
         r: {
           angleLines: { 
             display: true, 
-            color: 'rgba(255, 255, 255, 0.1)'
+            color: 'rgb(161, 161, 161)'
           },
           grid: { 
             circular: true, 
-            color: 'rgba(255, 255, 255, 0.1)'
+            color: 'rgb(161, 161, 161)'
           },
           min: minValue,
           max: maxValue,
@@ -199,9 +199,12 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
       {loading && <div className="loading">Loading...</div>}
       {error && <div className="error">Error: {error}</div>}
       {!loading && !error && chartData && chartOptions && (
-        <div className="ratings-content">
-          <Radar data={chartData} options={chartOptions} />
-        </div>
+        <>
+          <h2 className="ratings-title">Driver Stats</h2>
+          <div className="ratings-content">
+            <Radar data={chartData} options={chartOptions} />
+          </div>
+        </>
       )}
     </div>
   );
