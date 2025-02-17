@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TrendingUp, Award, Clock } from 'lucide-react';
 import Predictor from '../../lib/predictor';
 import './predictor.css';
 
@@ -10,6 +10,7 @@ const WinnerPredictor = () => {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentDrivers, setCurrentDrivers] = useState([]);
+  const [driverStats, setDriverStats] = useState({});
   const [error, setError] = useState(null);
   const predictor = useRef(null);
 
@@ -19,40 +20,18 @@ const WinnerPredictor = () => {
         setError(null);
         setLoading(true);
 
-        // Fetch next race data
         const raceResponse = await fetch('http://localhost:5000/api/next-race');
-        if (!raceResponse.ok) {
-          throw new Error(`Failed to fetch next race data: ${raceResponse.statusText}`);
-        }
+        if (!raceResponse.ok) throw new Error('Failed to fetch next race data');
         const raceData = await raceResponse.json();
-        
-        // Add circuit ID to race data
-        const enhancedRaceData = {
-          ...raceData,
-          circuitId: raceData.track.toLowerCase()
-            .replace(/\s+circuit$/i, '')
-            .replace(/\s+/g, '-')
-            .replace(/[^a-z0-9-]/g, '')
-            .replace(/-+/g, '-')
-        };
-        setNextRace(enhancedRaceData);
+        setNextRace(raceData);
 
-        // Fetch current drivers using race season
         const driversResponse = await fetch(
           `http://localhost:5000/api/current-drivers?season=${raceData.season}`
         );
-        console.log(raceData.season)
-        if (!driversResponse.ok) {
-          throw new Error(`Failed to fetch drivers: ${driversResponse.statusText}`);
-        }
+        if (!driversResponse.ok) throw new Error('Failed to fetch drivers');
         const driversData = await driversResponse.json();
-        if (!driversData || !driversData.length) {
-          throw new Error('No drivers data available');
-        }
-
         setCurrentDrivers(driversData);
-        console.log(driversData)
-        // Initialize predictor with drivers
+
         predictor.current = new Predictor();
         await predictor.current.initialize(driversData);
       } catch (error) {
@@ -76,10 +55,17 @@ const WinnerPredictor = () => {
     setError(null);
     
     try {
-      const predictionResult = await predictor.current.predict({
-        nextRace,
-        weather: nextRace.weather || {}
-      });
+      const stats = {};
+      for (const driver of currentDrivers) {
+        const [history, seasonStats] = await Promise.all([
+          predictor.current.getDriverHistory(driver, nextRace),
+          predictor.current.getCurrentSeasonStats(driver)
+        ]);
+        stats[driver.name] = { history, seasonStats };
+      }
+      setDriverStats(stats);
+
+      const predictionResult = await predictor.current.predict({ nextRace });
       setPrediction(predictionResult);
     } catch (error) {
       console.error('Prediction error:', error);
@@ -89,10 +75,15 @@ const WinnerPredictor = () => {
     }
   };
 
+  const getDriverHeadshot = (driverName) => {
+    const driver = currentDrivers.find(d => d.name === driverName);
+    return driver?.driverHeadshot || '/api/placeholder/64/64';
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="predictor-header text-lg font-semibold">
+        <CardTitle className="text-lg font-semibold predictor-header">
           Race Winner Prediction: {nextRace?.name} {nextRace?.season}
         </CardTitle>
       </CardHeader>
@@ -107,7 +98,7 @@ const WinnerPredictor = () => {
           <Button
             onClick={makePrediction}
             disabled={!predictor.current?.initialized || loading || !currentDrivers.length}
-            className="w-full bg-black hover:bg-gray-800"
+            className="w-full bg-black hover:bg-gray-800 text-white"
           >
             {loading ? (
               <div className="flex items-center justify-center">
@@ -120,55 +111,65 @@ const WinnerPredictor = () => {
           </Button>
 
           {prediction && (
-            <div className="predicted-section mt-6 space-y-4">
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">Top 3 Predictions:</h3>
-                {prediction.predictions?.map((pred, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex justify-between items-center p-3 rounded-lg ${
-                      index === 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-medium">{index + 1}. {pred.driver}</span>
-                      <div className="text-sm text-gray-600">
-                        Confidence: {pred.confidence}
+            <div className="predicted-section">
+              <h3 className="font-semibold text-lg mb-4">Top 3 Predictions:</h3>
+              <div className="predictions-container">
+                {prediction.predictions?.map((pred, index) => {
+                  const stats = driverStats[pred.driver];
+                  const driverHeadshot = getDriverHeadshot(pred.driver);
+                  return (
+                    <div key={index} className="driver-prediction">
+                      <div className="prediction-header">
+                        <img 
+                          src={driverHeadshot}
+                          alt={pred.driver}
+                          className="driver-headshot"
+                        />
+                        <div className="driver-info">
+                          <div className="driver-name">
+                            {index + 1}. {pred.driver}
+                          </div>
+                          <div className="driver-team">
+                            Team: {pred.team}
+                          </div>
+                          <div className="win-chance">
+                            {(pred.probability * 100).toFixed(1)}% chance
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="stats-section">
+                        <div className="stats-row">
+                          <div className="stats-column track-history">
+                            <div className="stats-header">
+                              <Award className="w-4 h-4" />
+                              <span>Track History</span>
+                            </div>
+                            <div>Avg Finish: {stats.history.avgFinishPosition.toFixed(1)}</div>
+                            <div>Wins: {stats.history.trackWins}</div>
+                            <div>Podiums: {stats.history.trackPodiums}</div>
+                          </div>
+                          
+                          <div className="stats-column current-form">
+                            <div className="stats-header">
+                              <TrendingUp className="w-4 h-4" />
+                              <span>Current Form</span>
+                            </div>
+                            <div>Points: {stats.seasonStats.points}</div>
+                            <div>Momentum: {(stats.seasonStats.momentum * 100).toFixed(1)}%</div>
+                            <div>Wins: {stats.seasonStats.wins}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <span className="text-lg font-semibold">
-                      {(pred.probability * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2">Key Factors:</h4>
-                <div className="space-y-2">
-                  {Object.entries(prediction.factors || {}).map(([factor, value]) => (
-                    <div key={factor} className="text-sm">
-                      <span className="font-medium">
-                        {factor.replace(/_/g, ' ').toUpperCase()}:
-                      </span>
-                      <span className="ml-2 text-gray-600">
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {prediction.reliability && (
-                <div className="mt-3 text-sm text-gray-500">
-                  Prediction reliability: {prediction.reliability}
-                </div>
-              )}
             </div>
           )}
 
           {!prediction && !loading && nextRace && (
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-gray-400 text-center">
               Click the button above to get race winner predictions for {nextRace.name}.
             </p>
           )}

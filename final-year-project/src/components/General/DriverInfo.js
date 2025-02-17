@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-function DriverRaceInfo({ sessionKey, meetingKey, driverNumber, year, round }) {
+function DriverRaceInfo({ driverNumber, year, round }) {
   const [raceResult, setRaceResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -8,7 +8,7 @@ function DriverRaceInfo({ sessionKey, meetingKey, driverNumber, year, round }) {
 
   useEffect(() => {
     const fetchDriverInfo = async () => {
-      if (!sessionKey || !meetingKey || !driverNumber || !year || !round) return;
+      if (!driverNumber || !year || !round) return;
       
       setLoading(true);
       setError(null);
@@ -23,6 +23,7 @@ function DriverRaceInfo({ sessionKey, meetingKey, driverNumber, year, round }) {
         const driversResponse = await fetch(
           `http://localhost:5000/api/current-drivers?season=${year}`
         );
+        console.log(driversResponse)
         if (!driversResponse.ok) {
           if (driversResponse.status === 429 && retryCount < 3) {
             // If rate limited, wait and retry
@@ -63,7 +64,7 @@ function DriverRaceInfo({ sessionKey, meetingKey, driverNumber, year, round }) {
     };
 
     fetchDriverInfo();
-  }, [sessionKey, meetingKey, driverNumber, year, round, retryCount]);
+  }, [driverNumber, year, round, retryCount]);
 
   if (loading) {
     return <div className="driver-race-info-loading">

@@ -1,7 +1,120 @@
 .predicted-section {
     color: white;
+    width: 100%;
 }
 
 .predictor-header {
     color: white;
+}
+
+.predictions-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.driver-prediction {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    background: rgb(17, 24, 39);
+    border-radius: 0.5rem;
+    height: auto;
+}
+
+.prediction-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.driver-headshot {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(209, 213, 219, 0.5);
+    margin-bottom: 0.75rem;
+}
+
+.driver-info {
+    text-align: center;
+    width: 100%;
+}
+
+.driver-name {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.driver-team {
+    font-size: 0.875rem;
+    opacity: 0.8;
+    margin-bottom: 0.5rem;
+}
+
+.win-chance {
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    margin-top: 0.25rem;
+}
+
+.stats-section {
+    width: 100%;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(209, 213, 219, 0.2);
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
+.stats-column {
+    flex: 0 1 auto;
+    font-size: 0.875rem;
+}
+
+.track-history {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.current-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-left: auto;
+    text-align: right;
+}
+
+.stats-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: white;
+    font-weight: 500;
+}
+
+.current-form .stats-header {
+    justify-content: flex-end;
+}
+
+.track-history div, .current-form div {
+    color: rgb(209, 213, 219);
+}
+
+.stats-header span {
+    font-size: 0.875rem;
 }

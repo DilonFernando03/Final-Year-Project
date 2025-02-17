@@ -18,7 +18,7 @@ class Predictor {
         tf.layers.dense({ 
           units: 128, 
           activation: 'relu', 
-          inputShape: [20],
+          inputShape: [15],
           kernelRegularizer: tf.regularizers.l2({ l2: 0.01 })
         }),
         tf.layers.dropout({ rate: 0.2 }),
@@ -50,7 +50,6 @@ class Predictor {
         console.warn('No circuit information provided for driver history');
         return this.getDefaultHistory();
     }
-
     try {
         // Ensure driverId is treated as a number
         const driverNum = parseInt(driver.number);
@@ -70,6 +69,7 @@ class Predictor {
         }
         
         const data = await response.json();
+
         return {
             trackWins: data.trackWins || 0,
             trackPodiums: data.trackPodiums || 0,
@@ -123,82 +123,36 @@ getDefaultSeasonStats() {
     };
 }
 
-  async getCarPerformance(team) {
-    const teamIds = {
-      'Red Bull': 'red_bull',
-      'Mercedes': 'mercedes',
-      'Ferrari': 'ferrari',
-      'McLaren': 'mclaren',
-      'Aston Martin': 'aston_martin',
-      'Alpine': 'alpine',
-      'Williams': 'williams',
-      'AlphaTauri': 'alphatauri',
-      'Alfa Romeo': 'alfa',
-      'Haas': 'haas'
+async getCarPerformance(team) {
+  try {
+    const response = await fetch(`http://localhost:5000/api/team-stats?constructorId=${team}`);
+    if (!response.ok) {
+      console.warn(`Failed to fetch stats for team ${team}, using default values`);
+      return this.getDefaultCarPerformance();
+    }
+    const stats = await response.json();
+    // Normalize and calculate performance metrics
+    return {
+      reliability: stats.reliability || 0,
+      performance: stats.performance || 0,
+      podiums: Math.min(stats.podiums || 0), 
+      averageFinish: Math.min(stats.averageFinish || 20, 20)
     };
-
-    try {
-      const constructorId = teamIds[team];
-      if (!constructorId) {
-        throw new Error('Team not found');
-      }
-
-      const response = await fetch(`http://localhost:5000/api/team-stats?constructorId=${constructorId}`);
-      if (!response.ok) throw new Error('Failed to fetch team stats');
-      
-      const stats = await response.json();
-      console.log(stats)
-      return {
-        reliability: stats.reliability,
-        speed: stats.performance,
-        cornering: Math.min(0.9, stats.performance * 1.1),
-        tires: Math.min(0.9, (stats.performance + stats.reliability) / 2)
-      };
-    } catch (error) {
-      console.error('Error getting car performance:', error);
-      return {
-        reliability: 0.75,
-        speed: 0.70,
-        cornering: 0.70,
-        tires: 0.70
-      };
-    }}
-
-  getCircuitFactors(trackName) {
-    const circuits = {
-      'Monaco': {
-        overtakingDifficulty: 0.9,
-        trackLength: 3.337,
-        corners: { slow: 8, medium: 4, fast: 2 },
-        tireDegradation: 0.6
-      },
-      'Monza': {
-        overtakingDifficulty: 0.4,
-        trackLength: 5.793,
-        corners: { slow: 2, medium: 4, fast: 5 },
-        tireDegradation: 0.7
-      },
-      'Silverstone': {
-        overtakingDifficulty: 0.5,
-        trackLength: 5.891,
-        corners: { slow: 2, medium: 4, fast: 8 },
-        tireDegradation: 0.8
-      },
-      'Spa': {
-        overtakingDifficulty: 0.4,
-        trackLength: 7.004,
-        corners: { slow: 3, medium: 5, fast: 11 },
-        tireDegradation: 0.75
-      }
-    };
-    
-    return circuits[trackName] || {
-      overtakingDifficulty: 0.6,
-      trackLength: 5.0,
-      corners: { slow: 4, medium: 6, fast: 4 },
-      tireDegradation: 0.7
-    };
+  } catch (error) {
+    console.error('Error getting car performance:', error);
+    return this.getDefaultCarPerformance();
   }
+}
+
+// Add this helper method
+getDefaultCarPerformance() {
+  return {
+      reliability: 0.75,
+      performance: 0.70,
+      podiums: 0,
+      averageFinish: 10
+  };
+}
 
 
   processRecentResults(results) {
@@ -226,37 +180,34 @@ getDefaultSeasonStats() {
     try {
       const features = [];
       for (const driver of this.drivers) {
-        const history = await this.getDriverHistory(driver, raceData.nextRace);
-        const seasonStats = await this.getCurrentSeasonStats(driver);
-        const carPerf = this.getCarPerformance(driver.team);
-        const circuitFactors = this.getCircuitFactors(raceData.nextRace?.trackName);
-
+        // Get all async data concurrently
+        const [history, seasonStats, carPerf] = await Promise.all([
+          this.getDriverHistory(driver, raceData.nextRace),
+          this.getCurrentSeasonStats(driver),
+          this.getCarPerformance(driver.teamId)
+        ]);
 
         const driverFeatures = [
           // Historical Performance (5 features)
-          history.trackWins / 10,
-          history.trackPodiums / 20,
-          (20 - history.avgFinishPosition) / 20,
-          1 - history.dnfRate,
-          this.calculateMomentum(history.recentForm),
-
-          // Current Season Form (5 features)
-          seasonStats.points / 400,
-          seasonStats.podiums / 20,
-          seasonStats.wins / 10,
-          (20 - seasonStats.averageFinish) / 20,
-          seasonStats.momentum,
-
+          Math.min(1, Math.max(0, history.trackWins / 10)),
+          Math.min(1, Math.max(0, history.trackPodiums / 20)),
+          Math.min(1, Math.max(0, (20 - history.avgFinishPosition) / 20)),
+          Math.min(1, Math.max(0, 1 - history.dnfRate)),
+          Math.min(1, Math.max(0, this.calculateMomentum(history.recentForm))),
+        
+          // Current Season Form (6 features)
+          Math.min(1, Math.max(0, seasonStats.points / 500)),
+          Math.min(1, Math.max(0, seasonStats.podiums / 20)),
+          Math.min(1, Math.max(0, seasonStats.wins / 10)),
+          Math.min(1, Math.max(0, seasonStats.dnfs / 20)),
+          Math.min(1, Math.max(0, (20 - seasonStats.averageFinish) / 20)),
+          Math.min(1, Math.max(0, seasonStats.momentum)),
+        
           // Car Performance (4 features)
-          carPerf.reliability,
-          carPerf.speed,
-          carPerf.cornering,
-          carPerf.tires,
-
-          // Circuit Specific (3 features)
-          1 - circuitFactors.overtakingDifficulty,
-          circuitFactors.corners.fast / 15,
-          1 - circuitFactors.tireDegradation
+          Math.min(1, Math.max(0, carPerf.reliability)),
+          Math.min(1, Math.max(0, carPerf.performance)),
+          Math.min(1, Math.max(0, carPerf.podiums / 25)),
+          Math.min(1, Math.max(0, (20 - carPerf.averageFinish) / 20))
         ];
 
         features.push(driverFeatures);
@@ -271,62 +222,31 @@ getDefaultSeasonStats() {
       console.error('Prediction error:', error);
       throw error;
     }
-  }
+}
 
   formatPredictions(rawPredictions) {
     const totalProb = _.sum(rawPredictions);
     const normalizedPredictions = rawPredictions.map(prob => prob / totalProb);
-    
     const top3 = _.chain(normalizedPredictions)
       .map((prob, index) => ({
         driver: this.drivers[index]?.name || `Driver ${index + 1}`,
-        probability: prob,
-        confidence: this.calculateConfidence(prob)
+        team: this.drivers[index]?.teamName || 'Unknown Team',
+        probability: prob
       }))
       .orderBy(['probability'], ['desc'])
       .take(3)
       .value();
-    console.log(top3)
     return {
       predictions: top3,
-      factors: this.analyzeFactors(),
       reliability: this.calculateReliability(top3[0].probability)
     };
   }
-
-  calculateConfidence(probability) {
-    const thresholds = {
-      VERY_HIGH: 0.35,
-      HIGH: 0.25,
-      MEDIUM: 0.15,
-      LOW: 0.08,
-      VERY_LOW: 0
-    };
-
-    if (probability >= thresholds.VERY_HIGH) return 'VERY_HIGH';
-    if (probability >= thresholds.HIGH) return 'HIGH';
-    if (probability >= thresholds.MEDIUM) return 'MEDIUM';
-    if (probability >= thresholds.LOW) return 'LOW';
-    return 'VERY_LOW';
-  }
-
   calculateReliability(topProbability) {
     if (topProbability > 0.8) return 'Very High';
     if (topProbability > 0.6) return 'High';
     if (topProbability > 0.4) return 'Medium';
     if (topProbability > 0.2) return 'Low';
     return 'Very Low';
-  }
-
-  analyzeFactors() {
-    return {
-      historical_performance: 'Based on previous results at this track',
-      track_specific: 'Historical performance at this circuit',
-      current_form: 'Recent race performances and momentum',
-      car_performance: 'Current car capabilities and reliability',
-      weather_adaptation: 'Performance in forecasted conditions',
-      circuit_suitability: 'Track characteristics vs driving style'
-    };
   }
 }
 
