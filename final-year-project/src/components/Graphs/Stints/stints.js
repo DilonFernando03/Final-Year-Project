@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import './stints.css';
-
 function Stints({ sessionKey, meetingKey }) {
   const [allDriverStints, setAllDriverStints] = useState({});
   const [allDrivers, setAllDrivers] = useState([]);
@@ -10,9 +9,10 @@ function Stints({ sessionKey, meetingKey }) {
   const containerRef = useRef(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
 
+  /* Helper function to add delay between API calls */
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Add resize observer to track container dimensions
+  /* Add resize observer to track container dimensions */
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -30,6 +30,7 @@ function Stints({ sessionKey, meetingKey }) {
     };
   }, []);
 
+  /* Fetch with retry logic for API calls */
   const fetchWithRetry = async (url, retries = 5, baseDelay = 2000) => {
     let lastError;
     
@@ -55,7 +56,7 @@ function Stints({ sessionKey, meetingKey }) {
     throw lastError;
   };
 
-  // Fetch drivers
+  /* Fetch drivers list */
   useEffect(() => {
     const fetchDrivers = async () => {
       if (!sessionKey || !meetingKey) return;
@@ -81,7 +82,7 @@ function Stints({ sessionKey, meetingKey }) {
     fetchDrivers();
   }, [sessionKey, meetingKey]);
 
-  // Fetch stints
+  /* Fetch stint data for all drivers */
   useEffect(() => {
     const fetchAllStints = async () => {
       if (!allDrivers.length) return;
@@ -90,6 +91,7 @@ function Stints({ sessionKey, meetingKey }) {
       const chunks = [];
       const chunkSize = 5;
       
+      /* Divide drivers into chunks to avoid API rate limits */
       for (let i = 0; i < allDrivers.length; i += chunkSize) {
         chunks.push(allDrivers.slice(i, i + chunkSize));
       }
@@ -109,7 +111,7 @@ function Stints({ sessionKey, meetingKey }) {
               console.error(`Error fetching stints for ${driver.name}:`, error);
             }
           }));
-          await delay(2000);
+          await delay(200); /* Add delay between chunks to avoid rate limiting */
         }
         
         setAllDriverStints(newStints);
@@ -124,10 +126,13 @@ function Stints({ sessionKey, meetingKey }) {
     fetchAllStints();
   }, [allDrivers, meetingKey, sessionKey]);
 
+  /* Create plotly visualization of stint data */
   const renderPlot = () => {
     if (Object.keys(allDriverStints).length === 0) return null;
 
     const driversWithData = Object.keys(allDriverStints);
+     
+    /* Find maximum lap for scale */
     const maxLap = Math.max(
       ...driversWithData.flatMap(driver => 
         allDriverStints[driver].map(stint => stint.lap_end)
@@ -135,7 +140,7 @@ function Stints({ sessionKey, meetingKey }) {
     );
     const xAxisMax = Math.ceil(maxLap * 1.05);
 
-    // Calculate height based on container and number of drivers
+    /* Calculate height based on container and number of drivers */
     const MIN_HEIGHT_PER_DRIVER = 20;
     const numDrivers = driversWithData.length;
     const availableHeight = containerDimensions.height || 300;
@@ -146,10 +151,12 @@ function Stints({ sessionKey, meetingKey }) {
     
     const maxBarWidth = 10;
 
+    /* Prepare data for plot */
     const data = driversWithData.flatMap((driverName, driverIndex) => {
       const driverStints = allDriverStints[driverName] || [];
       
       return driverStints.flatMap((stint) => {
+        /* Get compound letter abbreviation */
         const compoundLetter = stint.compound === 'SOFT' ? 'S' :
                              stint.compound === 'MEDIUM' ? 'M' :
                              stint.compound === 'HARD' ? 'H' :
@@ -157,6 +164,7 @@ function Stints({ sessionKey, meetingKey }) {
                              stint.compound === 'INTERMEDIATE' ? 'I' :
                              'U';
 
+        /* Set color based on compound */
         const color = stint.compound === 'SOFT' ? '#FF4D4D' :
                      stint.compound === 'MEDIUM' ? '#FFD700' :
                      stint.compound === 'HARD' ? '#808080' :
@@ -165,6 +173,7 @@ function Stints({ sessionKey, meetingKey }) {
 
         const yPosition = driversWithData.length - driverIndex;
 
+        /* Create stint duration and text label for each stint */
         return [
           {
             type: 'scatter',
@@ -197,6 +206,7 @@ function Stints({ sessionKey, meetingKey }) {
       });
     });
 
+    /* Layout configuration */
     const layout = {
       title: {
         text: 'Pit Strategy - All Drivers',
@@ -256,6 +266,7 @@ function Stints({ sessionKey, meetingKey }) {
       }
     };
 
+    /* Plotly configuration */
     const config = {
       displayModeBar: false,
       responsive: true,

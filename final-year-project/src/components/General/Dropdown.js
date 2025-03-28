@@ -1,8 +1,7 @@
 import './Dropdown.css';
 import React from 'react';
 
-
-
+/* RaceDropdown Component */
 function RaceDropdown({ races, onRaceChange }) {
   const handleChange = (event) => {
     const selectedRace = event.target.value;
@@ -25,8 +24,9 @@ function RaceDropdown({ races, onRaceChange }) {
   );
 }
 
+/* YearDropdown Component */
 function YearDropdown({ onYearChange }) {
-  const years = [2023, 2024];
+  const years = [2023, 2024, 2025];
 
   const handleChange = (event) => {
     const selectedYear = event.target.value;
@@ -49,6 +49,7 @@ function YearDropdown({ onYearChange }) {
   );
 }
 
+/* DriverDropdown Component */
 function DriverDropdown({ drivers, onDriverChange }) {
   const handleChange = (event) => {
     const selectedDriver = event.target.value;
@@ -71,6 +72,7 @@ function DriverDropdown({ drivers, onDriverChange }) {
   );
 }
 
+/* LapDropdown Component */
 function LapDropdown({ laps, onLapChange }) {
   const handleChange = (event) => {
     const selectedLap = event.target.value;
@@ -90,8 +92,6 @@ function LapDropdown({ laps, onLapChange }) {
       </select>
     </div>
   );
-
 }
-
 
 export { YearDropdown, RaceDropdown, LapDropdown, DriverDropdown};

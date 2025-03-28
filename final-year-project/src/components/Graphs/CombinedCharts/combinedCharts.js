@@ -9,6 +9,7 @@ function CombinedCharts({
   const [drivers, setDrivers] = useState([]);
   const MAX_DRIVERS = 3;
 
+  /* Fetch all available drivers for the session */
   useEffect(() => {
     const fetchDriverData = async () => {
       if (sessionKey && meetingKey) {
@@ -16,7 +17,7 @@ function CombinedCharts({
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           
-          // Filter out the primary driver and map to names
+          /* Filter out the primary driver and map to names */
           const driverData = data
             .map((driver) => driver.full_name)
             .filter(name => name !== primaryDriver);
@@ -31,6 +32,7 @@ function CombinedCharts({
     fetchDriverData();
   }, [sessionKey, meetingKey, primaryDriver]);
 
+  /* Handle driver selection toggling with MAX_DRIVERS limit */
   const toggleDriverSelection = (driver) => {
     setSelectedDrivers((prevSelected) => {
       if (prevSelected.includes(driver)) {
@@ -43,6 +45,7 @@ function CombinedCharts({
     });
   };
 
+  /* Format driver name with proper capitalization */
   const formatDriverName = (name) => {
     return name
       .toLowerCase()

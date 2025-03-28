@@ -1,12 +1,15 @@
+/* Main section container */
 .predicted-section {
     color: white;
     width: 100%;
 }
 
+/* Header title */
 .predictor-header {
     color: white;
 }
 
+/* Grid layout for predictions */
 .predictions-container {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -15,6 +18,7 @@
     margin-top: 1rem;
 }
 
+/* Individual driver prediction card */
 .driver-prediction {
     display: flex;
     flex-direction: column;
@@ -24,6 +28,7 @@
     height: auto;
 }
 
+/* Upper section of prediction card */
 .prediction-header {
     display: flex;
     flex-direction: column;
@@ -31,6 +36,7 @@
     margin-bottom: 1.5rem;
 }
 
+/* Driver profile image */
 .driver-headshot {
     width: 3.5rem;
     height: 3.5rem;
@@ -40,23 +46,27 @@
     margin-bottom: 0.75rem;
 }
 
+/* Driver information container */
 .driver-info {
     text-align: center;
     width: 100%;
 }
 
+/* Driver name text */
 .driver-name {
     font-size: 1.125rem;
     font-weight: 500;
     margin-bottom: 0.25rem;
 }
 
+/* Driver team name text */
 .driver-team {
     font-size: 0.875rem;
     opacity: 0.8;
     margin-bottom: 0.5rem;
 }
 
+/* Win probability display */
 .win-chance {
     font-size: 1rem;
     font-weight: 600;
@@ -64,6 +74,7 @@
     margin-top: 0.25rem;
 }
 
+/* Statistics section */
 .stats-section {
     width: 100%;
     margin-top: 1rem;
@@ -71,6 +82,7 @@
     border-top: 1px solid rgba(209, 213, 219, 0.2);
 }
 
+/* Statistics row layout */
 .stats-row {
     display: flex;
     justify-content: space-between;
@@ -79,17 +91,20 @@
     width: 100%;
 }
 
+/* Statistics column */
 .stats-column {
     flex: 0 1 auto;
     font-size: 0.875rem;
 }
 
+/* Track history section */
 .track-history {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
 
+/* Current form section */
 .current-form {
     display: flex;
     flex-direction: column;
@@ -98,6 +113,7 @@
     text-align: right;
 }
 
+/* Headers for statistics sections */
 .stats-header {
     display: flex;
     align-items: center;
@@ -107,14 +123,17 @@
     font-weight: 500;
 }
 
+/* Right-align current form section header */
 .current-form .stats-header {
     justify-content: flex-end;
 }
 
+/* Stats text color */
 .track-history div, .current-form div {
     color: rgb(209, 213, 219);
 }
 
+/* Stats header text size */
 .stats-header span {
     font-size: 0.875rem;
 }

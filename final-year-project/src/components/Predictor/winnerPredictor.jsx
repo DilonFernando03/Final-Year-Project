@@ -14,24 +14,28 @@ const WinnerPredictor = () => {
   const [error, setError] = useState(null);
   const predictor = useRef(null);
 
+  /* Initialize the predictor with race and driver data on component mount */
   useEffect(() => {
     const initializePredictor = async () => {
       try {
         setError(null);
         setLoading(true);
 
+        /* Fetch next race information */
         const raceResponse = await fetch('http://localhost:5000/api/next-race');
         if (!raceResponse.ok) throw new Error('Failed to fetch next race data');
         const raceData = await raceResponse.json();
         setNextRace(raceData);
 
+        /* Fetch current drivers for the season */
         const driversResponse = await fetch(
           `http://localhost:5000/api/current-drivers?season=${raceData.season}`
         );
         if (!driversResponse.ok) throw new Error('Failed to fetch drivers');
         const driversData = await driversResponse.json();
         setCurrentDrivers(driversData);
-
+        
+        /* Initialize the predictor */
         predictor.current = new Predictor();
         await predictor.current.initialize(driversData);
       } catch (error) {
@@ -45,6 +49,7 @@ const WinnerPredictor = () => {
     initializePredictor();
   }, []);
 
+  /* Generate prediction for the next race */
   const makePrediction = async () => {
     if (!predictor.current?.initialized || !nextRace || !currentDrivers.length) {
       setError('Required race data is not available');
@@ -55,6 +60,7 @@ const WinnerPredictor = () => {
     setError(null);
     
     try {
+      /* Gather statistics for each driver */
       const stats = {};
       for (const driver of currentDrivers) {
         const [history, seasonStats] = await Promise.all([
@@ -64,7 +70,8 @@ const WinnerPredictor = () => {
         stats[driver.name] = { history, seasonStats };
       }
       setDriverStats(stats);
-
+      
+      /* Generate the prediction */
       const predictionResult = await predictor.current.predict({ nextRace });
       setPrediction(predictionResult);
     } catch (error) {
@@ -75,6 +82,7 @@ const WinnerPredictor = () => {
     }
   };
 
+  /* Get driver headshot image URL */
   const getDriverHeadshot = (driverName) => {
     const driver = currentDrivers.find(d => d.name === driverName);
     return driver?.driverHeadshot || '/api/placeholder/64/64';

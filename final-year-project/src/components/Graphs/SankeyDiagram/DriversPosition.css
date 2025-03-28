@@ -1,0 +1,50 @@
+/* SVG Text Elements */
+.driver-code-text {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #000000;
+}
+
+.position-number {
+  font-size: 12px;
+  font-weight: 600;
+  fill: #ffffff;
+}
+
+.position-change-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.position-column-label {
+  font-size: 16px;
+  font-weight: 600;
+  fill: #ffffff;
+  text-transform: uppercase;
+}
+
+.race-title {
+  font-size: 16px;
+  font-weight: 600;
+  fill: #ffffff;
+}
+
+/* SVG Connection Elements */
+.driver-position-link {
+  fill: none;
+  stroke-width: 2.5;
+  opacity: 0.7;
+}
+
+/* SVG Circle Elements */
+.driver-circle {
+  stroke: #ffffff;
+  stroke-width: 1px;
+}
+
+/* Component Title */
+.driver-position-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgb(255, 255, 255);
+}

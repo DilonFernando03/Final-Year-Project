@@ -1,0 +1,179 @@
+.driver-race-info-inline {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1.5rem;
+    position: absolute;
+    right: 1.5rem;
+    top: 1.5rem;
+  }
+  
+  .race-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .race-stat-label {
+    font-size: 0.85rem;
+    color: #bbb;
+    font-weight: 500;
+  }
+  
+  .race-stat-value {
+    font-size: 1rem;
+    font-weight: bold;
+    color: white;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.25rem;
+    background-color: rgba(19, 19, 19, 0.8);
+    min-width: 2.5rem;
+    text-align: center;
+  }
+  
+  .position-value {
+    border-left: 3px solid #4b6cb7;
+  }
+  
+  .points-value {
+    border-left: 3px solid #FFA500;
+  }
+  
+  .driver-stat-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+  }
+  
+  .position-badge, .points-badge, .status-badge {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+  }
+  
+  .position-badge:hover, .points-badge:hover, .status-badge:hover {
+    transform: scale(1.05);
+  }
+  
+  .position-badge {
+    background: linear-gradient(135deg, #333333, #666666);
+    border: 2px solid #888888;
+  }
+  
+  .position-badge.gold {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    border: 2px solid #FFD700;
+    color: #000;
+  }
+  
+  .position-badge.silver {
+    background: linear-gradient(135deg, #C0C0C0, #A9A9A9);
+    border: 2px solid #C0C0C0;
+    color: #000;
+  }
+  
+  .position-badge.bronze {
+    background: linear-gradient(135deg, #CD7F32, #A0522D);
+    border: 2px solid #CD7F32;
+  }
+  
+  .position-badge.dnf {
+    background: linear-gradient(135deg, #8B0000, #B22222);
+    border: 2px solid #8B0000;
+  }
+  
+  .points-badge {
+    background: linear-gradient(135deg, #2c3e50, #4b6cb7);
+    border: 2px solid #4b6cb7;
+  }
+  
+  .status-badge {
+    background: linear-gradient(135deg, #2c3e50, #1abc9c);
+    border: 2px solid #1abc9c;
+    font-size: 0.9rem;
+    width: 70px;
+    height: 70px;
+    word-break: break-word;
+    text-align: center;
+    padding: 0.25rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #bbbbbb;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  /* Loading state spinner */
+  .driver-race-info-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: #bbbbbb;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+  
+  .loading-spinner-small {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  .driver-race-info-error {
+    color: #ff6b6b;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Media Queries for Responsive Design */
+  @media (max-width: 768px) {
+    .driver-stats-container {
+      padding: 0.6rem 1rem;
+      gap: 1rem;
+    }
+    
+    .position-badge, .points-badge, .status-badge {
+      width: 50px;
+      height: 50px;
+      font-size: 1.25rem;
+    }
+    
+    .driver-stat-box {
+      min-width: 60px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .driver-stats-container {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .driver-stat-box {
+      margin: 0.25rem 0.5rem;
+    }
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }

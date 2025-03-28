@@ -3,9 +3,10 @@ import "./TopThree.css";
 
 function TopDrivers({ year, raceName }) {
   const [topDrivers, setTopDrivers] = useState([]);
+
+  /* Check if driver data exists in cache */
   const checkCache = async (driverNumber, year) => {
     try {
-      
       const response = await fetch('http://localhost:5000/api/check-podium-cache', {
         method: 'POST',
         headers: {
@@ -25,6 +26,7 @@ function TopDrivers({ year, raceName }) {
     }
   };
 
+  /* Save driver information to cache */
   const saveToCache = async (driverInfo) => {
     try {
       await fetch('http://localhost:5000/api/save-podium-cache', {
@@ -39,6 +41,7 @@ function TopDrivers({ year, raceName }) {
     }
   };
 
+  /* Fetch driver details from cache or API */
   const getDriverDetails = async (driver, year) => {
     if (!driver.number) {
       return { 
@@ -52,7 +55,7 @@ function TopDrivers({ year, raceName }) {
       driver.number = 1;
     }
 
-    // First check the cache
+    /* First check the cache */
     const cachedData = await checkCache(driver.number, year);
     if (cachedData) {
       console.log('Using cached data for driver:', driver.name);
@@ -66,7 +69,7 @@ function TopDrivers({ year, raceName }) {
       };
     }
 
-    // If not in cache, fetch from API
+    /* If not in cache, fetch from API */
     try {
       const driverDetailsResponse = await fetch(
         `https://api.openf1.org/v1/drivers?driver_number=${driver.number}`
@@ -76,10 +79,10 @@ function TopDrivers({ year, raceName }) {
       if (!driverDetailsData || !driverDetailsData[0]) {
         throw new Error('No driver data returned from API');
       }
-
+      
       const driverInfo = driverDetailsData[0];
 
-      // Save to cache
+      /* Save to cache */
       await saveToCache({
         driver_number: driver.number,
         year: year,
@@ -107,6 +110,7 @@ function TopDrivers({ year, raceName }) {
     }
   };
 
+  /* Fetch top three drivers on component mount or when year/raceName change */
   useEffect(() => {
     const fetchTopThreeDrivers = async () => {
       try {
@@ -116,8 +120,7 @@ function TopDrivers({ year, raceName }) {
           `http://localhost:5000/api/top-three?year=${year}&raceName=${modifiedRaceName}`
         );
         const data = await response.json();
-
-        // Then enrich with driver details (from cache or API)
+        /* Then enrich with driver details (from cache or API) */
         const enrichedDrivers = await Promise.all(
           data.topThree.map(driver => getDriverDetails(driver, year))
         );
@@ -163,6 +166,7 @@ function TopDrivers({ year, raceName }) {
   );
 }
 
+/* Maps race names to API-friendly format */
 const mapRaceNameToPitwall = (raceName) => {
   const raceNameMapping = {
     "Sakhir": "bahrain",

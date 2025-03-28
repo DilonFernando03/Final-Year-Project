@@ -11,7 +11,7 @@ const PORT = 5000;
 
 app.use(cors());
 
-// Global data store
+/* Global Data Store */
 let dataStore = {
     drivers: [],
     races: [],
@@ -28,7 +28,7 @@ let dataStore = {
     podiumCache: []
 };
 
-// Load CSV data function
+/* Load CSV Data Function */
 async function loadCSVData() {
     try {
         const basePath = '../../dataset/';
@@ -56,15 +56,13 @@ async function loadCSVData() {
             });
             dataStore[key] = parsed.data;
         }
-
-        console.log('All CSV files loaded successfully');
     } catch (error) {
         console.error('Error loading CSV files:', error);
         throw error;
     }
 }
 
-// Loading podium data
+/* Load Podium Cache */
 async function loadPodiumCache() {
     try {
         const podiumCachePath = path.join(__dirname, '../../dataset/podium.csv');
@@ -76,13 +74,11 @@ async function loadPodiumCache() {
                 skipEmptyLines: true
             });
             dataStore.podiumCache = parsed.data;
-            console.log('Podium cache loaded successfully');
         } catch (error) {
             if (error.code === 'ENOENT') {
-                // Create empty cache file if it doesn't exist
+                /* Create empty cache file if it doesn't exist */
                 const headers = 'driver_number,year,headshot_url,team_colour,full_name\n';
                 await fs.writeFile(podiumCachePath, headers);
-                console.log('Created new podium cache file');
                 dataStore.podiumCache = [];
             } else {
                 throw error;
@@ -94,7 +90,7 @@ async function loadPodiumCache() {
     }
 }
 
-// Initialize data loading on server start
+/* Initialize data loading on server start */
 (async () => {
     try {
         await loadCSVData();
@@ -104,12 +100,12 @@ async function loadPodiumCache() {
     }
 })();
 
-// Helper function to get driver by ID
+/* Get driver by ID */
 function getDriverById(driverId) {
     return dataStore.drivers.find(d => d.driverId === parseInt(driverId));
 }
 
-// Helper function to get race results
+/* Get race results */
 function getRaceResults(year, round = null) {
     const race = dataStore.races.find(r => 
         r.year === parseInt(year) && (!round || r.round === parseInt(round))
@@ -121,6 +117,9 @@ function getRaceResults(year, round = null) {
     return { race, results };
 }
 
+/* ALL API Endpoints */
+
+/* Check podium cache endpoint */
 app.post('/api/check-podium-cache', express.json(), async (req, res) => {
     const { driverNumber, year } = req.body;
     
@@ -143,6 +142,7 @@ app.post('/api/check-podium-cache', express.json(), async (req, res) => {
     }
 });
 
+/* Save podium cache endpoint */
 app.post('/api/save-podium-cache', express.json(), async (req, res) => {
     try {
         const podiumCachePath = path.join(__dirname, '../../dataset/podium.csv');
@@ -154,17 +154,17 @@ app.post('/api/save-podium-cache', express.json(), async (req, res) => {
             full_name: req.body.full_name
         };
 
-        // Check if record already exists
+        /* Check if record already exists */
         const existingIndex = dataStore.podiumCache.findIndex(record => 
             record.driver_number === newRecord.driver_number && 
             record.year === newRecord.year
         );
 
         if (existingIndex === -1) {
-            // Add new record
+            /* Add new record */
             dataStore.podiumCache.push(newRecord);
             
-            // Write updated data to CSV
+            /* Write updated data to CSV */
             const csv = Papa.unparse(dataStore.podiumCache);
             await fs.writeFile(podiumCachePath, csv);
             
@@ -184,8 +184,7 @@ app.post('/api/save-podium-cache', express.json(), async (req, res) => {
     }
 });
 
-
-// Season stats endpoint
+/* Season Stats Endpoint */
 app.get('/api/season-stats', async (req, res) => {
     const { driverId, season = new Date().getFullYear() } = req.query;
     
@@ -194,57 +193,78 @@ app.get('/api/season-stats', async (req, res) => {
     }
 
     try {
-        // Get races for the season
-        const races = dataStore.races.filter(r => r.year === parseInt(season));
-        if (races.length === 0) {
-            // Fallback to API if no local data
-            const url = `http://api.jolpi.ca/ergast/f1/${season}/drivers/${driverId}/results.json`;
-            const { data } = await axios.get(url);
-            return res.json(data);
+        /* Fetch from Ergast API */
+        const url = `http://api.jolpi.ca/ergast/f1/${season}/drivers/${driverId}/results.json`;
+        const { data } = await axios.get(url);
+        
+        /* Check if race data is valid */
+        if (!data.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
+            return res.status(404).json({ 
+                error: 'No results found for driver in this season',
+                points: 0,
+                podiums: 0,
+                wins: 0,
+                dnfs: 0,
+                averageFinish: 10,
+                recentResults: []
+            });
         }
-
-        const results = [];
-        for (const race of races) {
-            const raceResult = dataStore.results.find(r => 
-                r.raceId === race.raceId && r.driverId === parseInt(driverId)
-            );
-            if (raceResult) {
-                results.push({
-                    position: parseInt(raceResult.position) || 20,
-                    points: parseFloat(raceResult.points),
-                    positionText: raceResult.positionText
-                });
-            }
-        }
-        if (results.length === 0) {
-            return res.status(404).json({ error: 'No results found for driver in this season' });
-        }
-
+        
+        /* Process the results from API */
+        const results = data.MRData.RaceTable.Races.map(race => {
+            /* Each race should have at least one result for our driver */
+            const result = race.Results[0];
+            return {
+                position: parseInt(result.position) || 20,
+                points: parseFloat(result.points),
+                positionText: result.positionText,
+                status: result.status
+            };
+        });
+        
+        /* Calculate the statistics */
         const stats = {
             points: results.reduce((sum, race) => sum + race.points, 0),
             podiums: results.filter(race => race.position <= 3).length,
             wins: results.filter(race => race.position === 1).length,
-            dnfs: results.filter(race => race.positionText === 'R').length,
+            dnfs: results.filter(race => race.status === "Accident" || 
+                                        race.status === "Retired" || 
+                                        race.status.includes("Lap") ||
+                                        race.positionText === 'R').length,
             averageFinish: results.reduce((sum, race) => 
-                sum + (race.positionText === 'R' ? 20 : race.position), 0) / results.length,
-            recentResults: results.slice(-3).map(race => 
-                race.positionText === 'R' ? 20 : race.position)
+                sum + (race.status === "Accident" || 
+                      race.status === "Retired" || 
+                      race.status.includes("Lap") ||
+                      race.positionText === 'R' ? 20 : race.position), 0) / results.length,
+            recentResults: results.slice(-5).map(race => 
+                (race.status === "Accident" || 
+                race.status === "Retired" || 
+                race.status.includes("Lap") ||
+                race.positionText === 'R') ? 'DNF' : race.position)
         };
-
+        
         res.json(stats);
     } catch (error) {
         console.error('Error fetching season stats:', error);
-        res.status(500).json({ error: 'Failed to fetch season stats' });
+        res.status(500).json({ 
+            error: 'Failed to fetch season stats',
+            points: 0,
+            podiums: 0,
+            wins: 0,
+            dnfs: 0,
+            averageFinish: 10,
+            recentResults: []
+        });
     }
 });
 
+/* Driver History Endpoint */
 app.get('/api/driver-history', async (req, res) => {
     const {driverId, driverNum, circuitId } = req.query;
     if (!driverId || !driverNum || !circuitId) {
         return res.status(400).json({ error: 'Driver Number and circuit ID are required' });
     }
     try {
-        // First attempt to get data from local dataset
         const circuit = dataStore.circuits.find(c => 
             c.circuitRef.toLowerCase() === circuitId.replace(/-/g, '_').toLowerCase()
         );
@@ -254,7 +274,7 @@ app.get('/api/driver-history', async (req, res) => {
             throw new Error('Circuit not found in local data');
         }
 
-        // Get all races for this circuit
+        /* Get all races for this circuit */
         const allRaces = dataStore.races.filter(r => r.circuitId === circuit.circuitId);
         
         if (allRaces.length === 0) {
@@ -262,12 +282,9 @@ app.get('/api/driver-history', async (req, res) => {
             throw new Error('No races found for circuit');
         }
 
-        // Find driver with more flexible matching
+        /* Find driver with more flexible matching */
         const driver = dataStore.drivers.find(d => {
-            // First try exact number match
-            if (d.number === parseInt(driverNum)) return true;
-            
-            // Then try matching by driverId/driverRef
+            /* Then try matching by driverId/driverRef */
             if (d.driverRef && d.driverRef.toLowerCase() === driverId.toLowerCase()) return true;
             
             return false;
@@ -290,7 +307,7 @@ app.get('/api/driver-history', async (req, res) => {
         const recentResults = [];
         const currentYear = new Date().getFullYear();
 
-        // Process local data
+        /* Process local data */
         for (const race of allRaces) {
             const result = dataStore.results.find(r => 
                 r.raceId === race.raceId && 
@@ -304,7 +321,7 @@ app.get('/api/driver-history', async (req, res) => {
                 if (position <= 3) trackPodiums++;
                 if (result.positionText === 'R') dnfs++;
 
-                if (race.year > currentYear - 6) {
+                if (race.year > currentYear - 25) {
                     recentResults.push({
                         year: race.year,
                         position: result.positionText === 'R' ? 'DNF' : position
@@ -336,7 +353,7 @@ app.get('/api/driver-history', async (req, res) => {
     }
 });
 
-// Team stats endpoint
+/* Team Stats Endpoint */
 app.get('/api/team-stats', async (req, res) => {
     const { constructorId, year = new Date().getFullYear() } = req.query;
     
@@ -345,23 +362,23 @@ app.get('/api/team-stats', async (req, res) => {
     }
 
     try {
-        // Fetch team results from API
+        /* Fetch team results from API */
         let url = `http://api.jolpi.ca/ergast/f1/${year}/constructors/${constructorId}/results.json`;
         let { data } = await axios.get(url);
 
-        // If no races in current season, try previous season
+        /* If no races in current season, try previous season */
         if (!data.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
             url = `http://api.jolpi.ca/ergast/f1/${year-1}/constructors/${constructorId}/results.json`;
             const response = await axios.get(url);
             data = response.data;
         }
 
-        // If still no data, return error
+        /* If still no data, return error */
         if (!data.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
             return res.status(404).json({ error: 'No results found for team' });
         }
 
-        // Process all results across all races
+        /* Process all results across all races */
         const allResults = data.MRData.RaceTable.Races.reduce((acc, race) => {
             return acc.concat(race.Results);
         }, []);
@@ -370,7 +387,7 @@ app.get('/api/team-stats', async (req, res) => {
             return res.status(404).json({ error: 'No results found for team' });
         }
 
-        // Calculate statistics
+        /* Calculate statistics */
         const stats = {
             totalPoints: allResults.reduce((sum, result) => sum + parseInt(result.points), 0),
             wins: allResults.filter(result => result.position === "1").length,
@@ -379,7 +396,7 @@ app.get('/api/team-stats', async (req, res) => {
             averageFinish: allResults.reduce((sum, result) => {
                 const position = result.status === "Finished" ? 
                     parseInt(result.position) : 
-                    20; // DNF or other issues
+                    20; /* DNF or other issues */
                 return sum + position;
             }, 0) / allResults.length,
             reliability: 1 - (allResults.filter(result => 
@@ -400,7 +417,7 @@ app.get('/api/team-stats', async (req, res) => {
     }
 });
 
-// Race results endpoint
+/* Race Results Endpoint */
 app.get('/api/race-results', async (req, res) => {
     const { driverId, year, round } = req.query;
     
@@ -409,17 +426,40 @@ app.get('/api/race-results', async (req, res) => {
     }
 
     try {
+        /* First try to find the race in local data store */
         const race = dataStore.races.find(r => 
             r.year === parseInt(year) && (!round || r.round === parseInt(round))
         );
 
-
         if (!race) {
+            /* If race not found in local data, try API */
             const url = `http://api.jolpi.ca/ergast/f1/${year}/drivers/${driverId}/results.json`;
             const { data } = await axios.get(url);
-            return res.json(data);
+            
+            /* Check if API returned any races */
+            if (data.MRData?.RaceTable?.Races && data.MRData.RaceTable.Races.length > 0) {
+                /* Find the race that matches the round if specified */
+                let targetRace = data.MRData.RaceTable.Races;
+                if (round) {
+                    targetRace = targetRace.filter(r => r.round === round);
+                }
+                
+                /* If we found the race and it has results, return the first result */
+                if (targetRace.length > 0 && targetRace[0].Results && targetRace[0].Results.length > 0) {
+                    const result = targetRace[0].Results[0];
+                    return res.json({
+                        position: result.position,
+                        positionText: result.positionText,
+                        points: result.points
+                    });
+                }
+            }
+            
+            /* If we get here, API didn't have the data or no results */
+            return res.status(404).json({ error: 'Race result not found' });
         }
 
+        /* Use local data if race is found */
         const result = dataStore.results.find(r => 
             r.raceId === race.raceId && r.driverId === parseInt(driverId)
         );
@@ -439,98 +479,290 @@ app.get('/api/race-results', async (req, res) => {
     }
 });
 
-// Team Position Flow endpoint
-app.get('/api/team-positions', async (req, res) => {
-    const { year, round } = req.query;
+/* Driver Position Flow Endpoint */
+app.get('/api/driver-positions', async (req, res) => {
+    const { year, round, sessionKey} = req.query;
     
-    if (!year || !round) {
-        return res.status(400).json({ error: 'Year and round are required' });
+    if (!year || !round || !sessionKey) {
+        return res.status(400).json({ error: 'Year and round and session key are required' });
     }
-
+    
+    /* Get driver data from OpenF1 API with error handling */
+    let f1Response = { data: [] };
+    try {
+        const response = await axios.get(`https://api.openf1.org/v1/drivers?session_key=${sessionKey}`);
+        f1Response = response;
+    } catch (error) {
+        console.warn('OpenF1 API error:', error.message);
+    }
+    
     try {
         const race = dataStore.races.find(r => 
             r.year === parseInt(year) && r.round === parseInt(round)
         );
 
         if (!race) {
+            /* If race not found in local data store, fetch from API */
             const url = `http://api.jolpi.ca/ergast/f1/${year}/${round}/results.json`;
-            const { data } = await axios.get(url);
-            return res.json(data);
+            try {
+                const { data } = await axios.get(url);
+                
+                /* Check if API returned valid race data */
+                if (!data?.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
+                    return res.status(404).json({ error: 'Race data not available' });
+                }
+                
+                /* Process API data for visualization */
+                const raceData = data.MRData.RaceTable.Races[0];
+                const driverPositions = await Promise.all(raceData.Results.map(async (result) => {
+                    // Get driver details
+                    const driverName = `${result.Driver.givenName} ${result.Driver.familyName}`;
+                    const driverShortName = result.Driver.code || 
+                        `${result.Driver.givenName[0]}${result.Driver.familyName.substring(0, 3)}`.toUpperCase();
+                    
+                    /* Grid position (starting position) */
+                    const gridPosition = parseInt(result.grid) || 20; /* Default to 20 if not available */
+                    
+                    /* Finishing position */
+                    const finishPosition = result.positionText === 'R' ? 21 : parseInt(result.position); /* Use 21 for DNF */
+                    
+                    /* Try to get team color from OpenF1 API by driver number */
+                    let teamColor = null;
+                    try {
+                        /* Use driver number for more reliable matching */
+                        let driverNumber = result.Driver.permanentNumber;
+                        if (driverNumber == 33){
+                            driverNumber = 1;
+                        }else if (driverNumber == 61){
+                            driverNumber = 7;
+                        }else if (driverNumber == 38){
+                            driverNumber = 87;
+                        }
+                        console.log("Driver number:", driverNumber);
+                        if (driverNumber && f1Response.data && Array.isArray(f1Response.data) && f1Response.data.length > 0) {
+                            /* Loop through all drivers in the response */
+                            for (let i = 0; i < f1Response.data.length; i++) {
+                                if (f1Response.data[i].driver_number == driverNumber) {
+                                    console.log("Found matching driver:", f1Response.data[i].driver_number);
+                                    teamColor = f1Response.data[i].team_colour;
+                                    if (teamColor && !teamColor.startsWith('#')) {
+                                        teamColor = `#${teamColor}`;
+                                    }
+                                    break; 
+                                }
+                            }
+                        }
+                    } catch (openF1Error) {
+                        console.warn(`Failed to get OpenF1 data for driver ${result.Driver.permanentNumber}:`, openF1Error.message);
+                    }
+                    
+                    return {
+                        driverName: driverName,
+                        driverShortName: driverShortName,
+                        driverId: result.Driver.driverId,
+                        teamId: result.Constructor.constructorId,
+                        teamName: result.Constructor.name,
+                        teamColor: teamColor || "#666666",
+                        gridPosition: gridPosition,
+                        finishPosition: finishPosition,
+                        status: result.status,
+                        positionChange: gridPosition - (result.positionText === 'R' ? 21 : parseInt(result.position))
+                    };
+                }));
+                
+                /* Prepare nodes and links for the visualization */
+                const nodes = [];
+                const links = [];
+                
+                /* Create two nodes for each driver (start and finish) */
+                driverPositions.forEach(dp => {
+                    /* Source node (Starting position) */
+                    nodes.push({
+                        id: `${dp.driverShortName}_start`,
+                        name: dp.driverShortName,
+                        fullName: dp.driverName,
+                        team: dp.teamName,
+                        teamColor: dp.teamColor, /* Add team color to nodes */
+                        position: dp.gridPosition,
+                        type: 'start',
+                        sortKey: dp.gridPosition /* Sort by grid position */
+                    });
+                    
+                    /* Target node (Finishing position) */
+                    nodes.push({
+                        id: `${dp.driverShortName}_finish`,
+                        name: dp.driverShortName,
+                        fullName: dp.driverName,
+                        team: dp.teamName,
+                        teamColor: dp.teamColor,
+                        position: dp.finishPosition === 21 ? 'DNF' : dp.finishPosition,
+                        type: 'finish',
+                        sortKey: dp.finishPosition /* Sort by finish position */
+                    });
+                    
+                    /* Link from start to finish */
+                    links.push({
+                        source: `${dp.driverShortName}_start`,
+                        target: `${dp.driverShortName}_finish`,
+                        value: 1,
+                        team: dp.teamId,
+                        teamColor: dp.teamColor, 
+                        driverName: dp.driverName,
+                        positionChange: dp.positionChange
+                    });
+                });
+                
+                /* Sort nodes by position */
+                nodes.sort((a, b) => {
+                    if (a.type === b.type) {
+                        /* If same type, sort by position */
+                        return a.sortKey - b.sortKey;
+                    }
+                    /* Otherwise, keep start nodes and finish nodes grouped */
+                    return a.type === 'start' ? -1 : 1;
+                });
+                
+                return res.json({ nodes, links });
+            } catch (apiError) {
+                console.error('Error fetching from API:', apiError);
+                return res.status(500).json({ error: 'Failed to fetch race data from API' });
+            }
         }
-
-        const raceResults = dataStore.results.filter(r => r.raceId === race.raceId)
-            .map(result => {
-                const constructor = dataStore.constructors.find(c => c.constructorId === result.constructorId);
-                const driver = dataStore.drivers.find(d => d.driverId === result.driverId);
-                return {
-                    team: constructor?.constructorRef || 'unknown',
-                    position: parseInt(result.position) || 20,
-                    driver: driver ? `${driver.forename} ${driver.surname}` : 'Unknown Driver'
-                };
-            });
-
-        const positionRanges = {
-            'Podium (1-3)': [1, 2, 3],
-            'Top 5 (4-5)': [4, 5],
-            'Points (6-10)': [6, 7, 8, 9, 10],
-            'Outside Points (11-20)': Array.from({length: 10}, (_, i) => i + 11)
-        };
-
-        const teams = [...new Set(raceResults.map(r => r.team))];
-        const nodes = [
-            ...teams.map(team => ({ name: team })),
-            ...Object.keys(positionRanges).map(range => ({ name: range }))
-        ];
-
-        const links = raceResults.map(result => {
-            const teamIndex = teams.indexOf(result.team);
-            const positionRange = Object.entries(positionRanges).find(([_, positions]) => 
-                positions.includes(result.position)
-            );
-            const rangeIndex = teams.length + Object.keys(positionRanges).indexOf(positionRange[0]);
+        
+        /* Using local data store */
+        const raceResults = dataStore.results.filter(r => r.raceId === race.raceId);
+        
+        /* Map drivers with their start and finish positions */
+        const driverPositions = await Promise.all(raceResults.map(async (result) => {
+            const driver = dataStore.drivers.find(d => d.driverId === result.driverId);
+            const constructor = dataStore.constructors.find(c => c.constructorId === result.constructorId);
+             
+            /* Grid position */
+            const gridPosition = result.grid || 20; /* Default to 20 if not available */
+            
+            /* Finishing position */
+            const finishPosition = result.positionText === 'R' ? 21 : parseInt(result.position); /* Use 21 for DNF */
+            
+            const driverName = driver ? `${driver.forename} ${driver.surname}` : 'Unknown Driver';
+            
+            /* Try to get team color from OpenF1 API using driver number */
+            let teamColor = null;
+            try {
+                if (driver && driver.number) {
+                    const driverNumber = driver.number;
+                    
+                    /* Use the data we already have instead of making a new request */
+                    if (f1Response.data && Array.isArray(f1Response.data) && f1Response.data.length > 0) {
+                        for (let i = 0; i < f1Response.data.length; i++) {
+                            if (f1Response.data[i].driver_number == driverNumber) {
+                                teamColor = f1Response.data[i].team_colour;
+                                if (teamColor && !teamColor.startsWith('#')) {
+                                    teamColor = `#${teamColor}`;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (openF1Error) {
+                console.warn(`Failed to get OpenF1 data for driver number ${driver?.number}:`, openF1Error.message);
+            }
             
             return {
-                source: teamIndex,
-                target: rangeIndex,
-                value: 1,
-                driver: result.driver
+                driverName: driverName,
+                driverShortName: driver ? (driver.code || `${driver.forename[0]}${driver.surname.substring(0, 3)}`).toUpperCase() : 'UNK',
+                driverId: driver ? driver.driverId : null,
+                teamId: constructor ? constructor.constructorRef : 'unknown',
+                teamName: constructor ? constructor.name : 'Unknown Team',
+                teamColor: teamColor || "#666666", /* Fallback color if API doesn't return one */
+                gridPosition: gridPosition,
+                finishPosition: finishPosition,
+                status: result.status,
+                positionChange: gridPosition - (result.positionText === 'R' ? 21 : parseInt(result.position))
             };
+        }));
+
+        /* Prepare nodes and links for the visualization */
+        const nodes = [];
+        const links = [];
+        
+        /* Create two nodes for each driver (start and finish) */
+        driverPositions.forEach(dp => {
+            /* Source node (Starting position) */
+            nodes.push({
+                id: `${dp.driverShortName}_start`,
+                name: dp.driverShortName,
+                fullName: dp.driverName,
+                team: dp.teamName,
+                teamColor: dp.teamColor,
+                position: dp.gridPosition,
+                type: 'start',
+                sortKey: dp.gridPosition /* Sort by grid position */
+            });
+            
+            /* Target node (Finishing position) */
+            nodes.push({
+                id: `${dp.driverShortName}_finish`,
+                name: dp.driverShortName,
+                fullName: dp.driverName,
+                team: dp.teamName,
+                teamColor: dp.teamColor,
+                position: dp.finishPosition === 21 ? 'DNF' : dp.finishPosition,
+                type: 'finish',
+                sortKey: dp.finishPosition /* Sort by finish position */
+            });
+            
+            /* Link from start to finish */
+            links.push({
+                source: `${dp.driverShortName}_start`,
+                target: `${dp.driverShortName}_finish`,
+                value: 1,
+                team: dp.teamId,
+                teamColor: dp.teamColor, 
+                driverName: dp.driverName,
+                positionChange: dp.positionChange
+            });
+        });
+
+        /* Sort nodes by position */
+        nodes.sort((a, b) => {
+            if (a.type === b.type) {
+                /* If same type, sort by position */
+                return a.sortKey - b.sortKey;
+            }
+            /* Otherwise, keep start nodes and finish nodes grouped */
+            return a.type === 'start' ? -1 : 1;
         });
 
         res.json({ nodes, links });
     } catch (error) {
-        console.error('Error fetching team positions:', error);
-        res.status(500).json({ error: 'Failed to fetch team positions' });
+        console.error('Error fetching driver positions:', error);
+        res.status(500).json({ error: 'Failed to fetch driver positions' });
     }
 });
 
-
-
-// Driver details endpoint
+/* Driver Details Endpoint */
 app.get('/api/driver-details', async (req, res) => {
     const { driverName } = req.query;
 
     if (!driverName) {
         return res.status(400).json({ error: 'Driver name is required.' });
     }
-
     try {
         const driverSlug = driverName.toLowerCase().replace(/\s+/g, '-');
         const url = `https://www.formula1.com/en/drivers/${driverSlug}.html`;
-
         const { data } = await axios.get(url);
+        
         const $ = cheerio.load(data);
-
-        // Target the specific grid container
+        /* Target the specific grid container */
         const statsGrid = $('.grid.gap-x-normal.gap-y-xs.f1-grid');
         const stats = {};
-
-        // Extract all dt/dd pairs from the grid
+        /* Extract all dt/dd pairs from the grid */
         statsGrid.find('dt').each((index, element) => {
             const label = $(element).text().trim();
             const value = $(element).next('dd').text().trim();
             
-            // Clean up the labels to use as keys
+            /* Clean up the labels to use as keys */
             const key = label.toLowerCase()
                            .replace(/^team$/, 'team')
                            .replace(/^country$/, 'country')
@@ -553,7 +785,7 @@ app.get('/api/driver-details', async (req, res) => {
     }
 });
 
-// Next race endpoint
+/* Next Race Endpoint */
 app.get('/api/next-race', async (req, res) => {
     try {
         const now = new Date();
@@ -569,7 +801,7 @@ app.get('/api/next-race', async (req, res) => {
     }
 });
 
-// Current drivers endpoint
+/* Fetch Next Race From Calendar */
 async function fetchNextRaceFromCalendar(season) {
     try {
         const url = `http://api.jolpi.ca/ergast/f1/${season}/races`;
@@ -596,7 +828,7 @@ async function fetchNextRaceFromCalendar(season) {
     }
 }
 
-// Top three drivers endpoint
+/* Top Three Drivers Endpoint */
 app.get('/api/top-three', async (req, res) => {
     const { year, raceName } = req.query;
 
@@ -607,131 +839,92 @@ app.get('/api/top-three', async (req, res) => {
     }
 
     try {
+        /* First check if we have this race in our local data store */
         const race = dataStore.races.find(r => 
             r.year === parseInt(year) && 
             r.name.toLowerCase().includes(raceName.toLowerCase().replace(/-/g, ' '))
         );
 
-        if (!race) {
-            // Fallback to web scraping
-            const raceSlug = `${year}-${raceName.replace(/\s+/g, '-').toLowerCase()}-grand-prix`;
-            const raceUrl = `https://pitwall.app/races/${raceSlug}`;
-            const { data } = await axios.get(raceUrl);
-            const $ = cheerio.load(data);
-        
-            const topThree = [];
-            
-            // Find the race results table
-            const resultsTable = $('.race-results-table');
-            
-            // Get top 3 rows from the table
-            resultsTable.find('tr').slice(1, 4).each((index, element) => {
-                const position = $(element).find('.position').text().trim();
-                const driverName = $(element).find('.driver-name').text().trim();
-                const teamName = $(element).find('.constructor-name').text().trim();
-                const timeElement = $(element).find('.time');
-                const time = timeElement.length ? timeElement.text().trim() : '';
+        if (race) {
+            /* Use local data if available */
+            const topThree = dataStore.results
+                .filter(r => r.raceId === race.raceId)
+                .sort((a, b) => parseInt(a.position) - parseInt(b.position))
+                .slice(0, 3)
+                .map(result => {
+                    const driver = dataStore.drivers.find(d => d.driverId === result.driverId);
+                    const constructor = dataStore.constructors.find(c => c.constructorId === result.constructorId);
+                    return {
+                        position: result.position,
+                        name: driver ? `${driver.forename} ${driver.surname}` : 'Unknown Driver',
+                        team: constructor?.name || 'Unknown Team',
+                        time: result.time,
+                        number: driver?.number || null 
+                    };
+                });
 
-                // Try to find driver number from the driver element
-                const driverNumberMatch = $(element)
-                    .find('.driver-number')
-                    .text()
-                    .trim()
-                    .match(/\d+/);
-                const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
-                
-                // Format data consistently with our database response
-                topThree.push({
-                    position: position,
-                    name: driverName,
-                    team: teamName,
-                    time: time,
-                    number: number
-                });
-            });
-            
-            // If no results found from scraping, try alternate table structure
-            if (topThree.length === 0) {
-                $('.results-summary .driver-result').slice(0, 3).each((index, element) => {
-                    const position = (index + 1).toString();
-                    const driverName = $(element).find('.driver-name').text().trim();
-                    const teamName = $(element).find('.team-name').text().trim();
-                    const timeElement = $(element).find('.time-gap');
-                    const time = timeElement.length ? timeElement.text().trim() : '';
-                    
-                    // Try to find driver number
-                    const driverNumberMatch = $(element)
-                        .find('.driver-number')
-                        .text()
-                        .trim()
-                        .match(/\d+/);
-                    const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
-        
-                    topThree.push({
-                        position: position,
-                        name: driverName,
-                        team: teamName,
-                        time: time,
-                        number: number
-                    });
-                });
-            }
-            
-            // Log what we found for debugging
-            console.log('Scraped top three:', topThree);
-            
-            // If we still have no results, try one more alternate structure
-            if (topThree.length === 0) {
-                $('.podium-results .podium-position').each((index, element) => {
-                    const position = (index + 1).toString();
-                    const driverName = $(element).find('.driver-name').text().trim();
-                    const teamName = $(element).find('.team-name').text().trim();
-                    const timeElement = $(element).find('.finishing-time');
-                    const time = timeElement.length ? timeElement.text().trim() : '';
-                    
-                    const driverNumberMatch = $(element)
-                        .find('.driver-number')
-                        .text()
-                        .trim()
-                        .match(/\d+/);
-                    const number = driverNumberMatch ? parseInt(driverNumberMatch[0]) : null;
-        
-                    topThree.push({
-                        position: position,
-                        name: driverName,
-                        team: teamName,
-                        time: time,
-                        number: number
-                    });
-                });
-            }
-        
             return res.json({ topThree });
         }
-
-        const topThree = dataStore.results
-            .filter(r => r.raceId === race.raceId)
-            .sort((a, b) => parseInt(a.position) - parseInt(b.position))
-            .slice(0, 3)
-            .map(result => {
-                const driver = dataStore.drivers.find(d => d.driverId === result.driverId);
-                const constructor = dataStore.constructors.find(c => c.constructorId === result.constructorId);
-                return {
-                    position: result.position,
-                    name: driver ? `${driver.forename} ${driver.surname}` : 'Unknown Driver',
-                    team: constructor?.name || 'Unknown Team',
-                    time: result.time,
-                    number: driver?.number || null // Ensure driver number is included
-                };
+        
+        /* First, try to find the race in the F1 calendar via API */
+        const calendarUrl = `http://api.jolpi.ca/ergast/f1/${year}/races.json`;
+        const calendarResponse = await axios.get(calendarUrl);
+        const calendarData = calendarResponse.data;
+        
+        if (calendarData.MRData?.RaceTable?.Races) {
+            /* Find the race that matches the provided name */
+            const races = calendarData.MRData.RaceTable.Races;
+            const matchedRace = races.find(r => {
+                const raceLower = r.raceName.toLowerCase();
+                const circuitLower = r.Circuit.circuitName.toLowerCase();
+                const localityLower = r.Circuit.Location.locality.toLowerCase();
+                const nameToMatch = raceName.toLowerCase().replace(/-/g, ' ');
+                
+                /* Try various matching techniques */
+                return raceLower.includes(nameToMatch) || 
+                       nameToMatch.includes(raceLower) ||
+                       circuitLower.includes(nameToMatch) ||
+                       localityLower === nameToMatch;
             });
+            
+            if (matchedRace) {
+                const round = matchedRace.round;
+                const resultsUrl = `http://api.jolpi.ca/ergast/f1/${year}/${round}/results.json`;
+                const resultsResponse = await axios.get(resultsUrl);
+                const resultsData = resultsResponse.data;
+                
+                if (resultsData.MRData?.RaceTable?.Races?.length > 0) {
+                    const raceResults = resultsData.MRData.RaceTable.Races[0];
+                    const topThree = raceResults.Results
+                        .slice(0, 3)
+                        .map(result => ({
+                            position: result.position,
+                            name: `${result.Driver.givenName} ${result.Driver.familyName}`,
+                            team: result.Constructor.name,
+                            time: result.Time?.time || '',
+                            number: parseInt(result.Driver.permanentNumber) || null
+                        }));
+                    
+                    return res.json({ topThree });
+                }
+            }
+        }
 
-        res.json({ topThree });
+        /* If all else fails, return an empty array with a message */
+        return res.json({ 
+            topThree: [],
+            message: "Podium data not available for this race yet"
+        });
     } catch (error) {
         console.error('Error fetching top three:', error);
-        res.status(500).json({ error: 'Failed to fetch top three drivers' });
+        res.status(500).json({ 
+            error: 'Failed to fetch podium data',
+            topThree: [] 
+        });
     }
 });
 
+/* Get Driver Headshot */
 async function getDriverHeadshot(driverName) {
     try {
         // Format driver name for URL
@@ -752,17 +945,17 @@ async function getDriverHeadshot(driverName) {
         const { data } = await axios.get(url);
         const $ = cheerio.load(data);
 
-        // Try multiple possible selectors for the image
+        /* Try multiple possible selectors for the image */
         let imageUrl = null;
         
-        // Look for the image element with more specific selectors
+        /* Look for the image element with more specific selectors */
         const imageElement = $('img[loading="eager"][class*="ms-item_img"]').first();
         if (imageElement.length) {
             imageUrl = imageElement.attr('src');
             if (imageUrl) return imageUrl;
         }
 
-        // Fallback: try to find any img within picture element
+        /* Fallback: try to find any img within picture element */
         if (!imageUrl) {
             const picture = $('picture').first();
             if (picture.length) {
@@ -772,7 +965,7 @@ async function getDriverHeadshot(driverName) {
                     if (imageUrl) return imageUrl;
                 }
 
-                // Try to get srcset from source elements
+                /* Try to get srcset from source elements */
                 const sources = picture.find('source');
                 if (sources.length) {
                     sources.each((_, source) => {
@@ -787,11 +980,11 @@ async function getDriverHeadshot(driverName) {
                                 };
                             });
                             
-                            // Sort by width and get the largest image
+                            /* Sort by width and get the largest image */
                             const largestImage = images.sort((a, b) => b.width - a.width)[0];
                             if (largestImage?.url) {
                                 imageUrl = largestImage.url;
-                                return false; // break each loop
+                                return false; 
                             }
                         }
                     });
@@ -806,6 +999,7 @@ async function getDriverHeadshot(driverName) {
     }
 }
 
+/* Fetch Drivers For Season */
 async function fetchDriversForSeason(season) {
     try {
         let url = `http://api.jolpi.ca/ergast/f1/${season}/results.json`;
@@ -822,7 +1016,7 @@ async function fetchDriversForSeason(season) {
         }
         const driversMap = new Map();
         
-        // Process drivers and get their headshots
+        /* Process drivers and get their headshots */
         const driversPromises = [];
         
         data.MRData.RaceTable.Races.forEach(race => {
@@ -836,11 +1030,10 @@ async function fetchDriversForSeason(season) {
                         number: driver.permanentNumber,
                         driverId: driver.driverId,
                         teamName: constructor.name,
-                        teamId: constructor.constructorId
+                        teamId: constructor.constructorId,
                     };
                     driversMap.set(driver.driverId, driverData);
-                    
-                    // Add promise to fetch headshot
+                    /* Add promise to fetch headshot */
                     driversPromises.push(
                         getDriverHeadshot(driverName)
                             .then(headshot => {
@@ -852,8 +1045,8 @@ async function fetchDriversForSeason(season) {
                 }
             });
         });
-        
-        // Wait for all headshot requests to complete
+         
+        /* Wait for all headshot requests to complete */
         await Promise.allSettled(driversPromises);
         
         return Array.from(driversMap.values());
@@ -863,7 +1056,7 @@ async function fetchDriversForSeason(season) {
     }
 }
 
-// The current drivers endpoint
+/* Current Drivers Endpoint */
 app.get('/api/current-drivers', async (req, res) => {
     const { season } = req.query;
     if (!season) {
@@ -894,7 +1087,7 @@ app.get('/api/current-drivers', async (req, res) => {
                 teamId: constructor.constructorId
             };
             
-            // Fetch headshot
+            /* Fetch headshot */
             const headshot = await getDriverHeadshot(driverName);
             if (headshot) {
                 driverData.driverHeadshot = headshot;
@@ -915,6 +1108,7 @@ app.get('/api/current-drivers', async (req, res) => {
     }
 });
 
+/* Start the server */
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

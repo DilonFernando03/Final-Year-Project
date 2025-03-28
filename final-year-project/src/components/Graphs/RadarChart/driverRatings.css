@@ -1,34 +1,43 @@
+/* Main container */
 .ratings-container {
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
+  min-height: 300px;
 }
 
+/* Component title */
 .ratings-title {
   font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   text-align: left;
   margin: 0;
 }
 
+/* Content area for the chart */
 .ratings-content {
   flex: 1;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem;
+  padding: 0.5rem;
+  min-height: 0;
 }
 
+/* Rating plot styling */
 .rating-plot {
   width: 100% !important;
   height: 100% !important;
   animation: fadeIn 0.5s ease-in;
+  max-width: 100%;
+  max-height: 100%;
 }
 
+/* Loading and error states - shared styles */
 .loading,
 .error {
   display: flex;
@@ -40,13 +49,15 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 500;
   transition: all 0.3s ease;
+  color: white;
 }
 
+/* Loading state specific styles */
 .loading {
-  color: #ececec;
   position: relative;
 }
 
+/* Loading spinner animation */
 .loading:after {
   content: '';
   width: 1.5rem;
@@ -58,15 +69,16 @@
   animation: spin 1s linear infinite;
 }
 
+/* Error state specific styles */
 .error {
   color: #dc2626;
-  background-color: #ffffff;
-  border-radius: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 0;
   padding: 1rem;
   text-align: center;
-  border: 1px solid #ffffff;
 }
 
+/* Keyframe animations */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

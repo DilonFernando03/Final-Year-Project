@@ -9,28 +9,39 @@ import Stints from '../Graphs/Stints/stints';
 import DriverInfoTipTool from '../ToolTips/DriverInfoToolTip';
 import DriverRaceInfo from './DriverInfo';
 import DriverRatings from '../Graphs/RadarChart/driverRatings';
-import TeamPosition from '../Graphs/SankeyDiagram/TeamPosition';
+import DriverPosition from '../Graphs/SankeyDiagram/DriversPosition';
+import TrackMap from './TrackMap';
 
+/* Dashboard Component */
 function Dashboard() {
+  // Primary state variables
   const [primaryDriver, setPrimaryDriver] = useState(null);
   const [driverNumber, setDriverNumber] = useState('');
   const [year, setYear] = useState(null);
   const [race, setRace] = useState(null);
   const [selectedRound, setSelectedRound] = useState(null);
   const [lap, setLap] = useState(null);
+  
+  /* Data collections */
   const [drivers, setDrivers] = useState([]);
   const [availableRaces, setAvailableRaces] = useState([]);
   const [availableLaps, setAvailableLaps] = useState([]);
-  const [sessionKey, setSessionKey] = useState(null);
-  const [meetingKey, setMeetingKey] = useState(null);
-  const [driverImage, setDriverImage] = useState('');
-  const [driverColour, setDriverColour] = useState('');
-  const [meetingOfficialName, setMeetingOfficialName] = useState('');
   const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [driverColors, setDriverColors] = useState({});
   
+  /* API keys and session identifiers */
+  const [sessionKey, setSessionKey] = useState(null);
+  const [meetingKey, setMeetingKey] = useState(null);
+  
+  /* UI display elements */ 
+  const [driverImage, setDriverImage] = useState('');
+  const [driverColour, setDriverColour] = useState('');
+  const [meetingOfficialName, setMeetingOfficialName] = useState('');
+  
+  /* Refs for scrolling */
   const predictorRef = useRef(null);
 
+  /* Resets all dashboard state to default values */
   const resetDashboard = () => {
     setRace(null);
     setPrimaryDriver(null);
@@ -49,6 +60,7 @@ function Dashboard() {
     setSelectedRound(null);
   };
 
+  /* Updates race selection and associated round */
   const handleRaceChange = (raceLocation) => {
     const selectedRace = availableRaces.find(r => r.location === raceLocation);
     if (selectedRace) {
@@ -57,6 +69,7 @@ function Dashboard() {
     }
   };
 
+  /* Fetch available races when year changes */
   useEffect(() => {
     if (year) {
       const fetchRacesForYear = async () => {
@@ -76,11 +89,12 @@ function Dashboard() {
     }
   }, [year]);
 
+  /* Fetch driver details when primary driver and session key are available */
   useEffect(() => {
-    if (primaryDriver) {
+    if (primaryDriver && sessionKey) {
       const fetchDriverDetails = async () => {
         try {
-          const response = await fetch(`https://api.openf1.org/v1/drivers?full_name=${primaryDriver}`);
+          const response = await fetch(`https://api.openf1.org/v1/drivers?full_name=${primaryDriver}&session_key=${sessionKey}`);
           const data = await response.json();
           const driverImageUrl = data[0].headshot_url;
           let driverColour = data[0].team_colour;
@@ -98,8 +112,9 @@ function Dashboard() {
       };
       fetchDriverDetails();
     }
-  }, [primaryDriver]);
+  }, [primaryDriver, sessionKey]);
 
+  /* Fetch available laps when meeting and session keys are available */
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchLapsForRace = async () => {
@@ -116,6 +131,7 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
+  /* Fetch session and meeting keys when year and race are selected */
   useEffect(() => {
     const fetchKeys = async () => {
       if (year && race) {
@@ -136,6 +152,7 @@ function Dashboard() {
     fetchKeys();
   }, [year, race]);
 
+  /* Fetch driver data when meeting and session keys are available */
   useEffect(() => {
     if (meetingKey && sessionKey) {
       const fetchDriverData = async () => {
@@ -157,6 +174,7 @@ function Dashboard() {
     }
   }, [meetingKey, sessionKey]);
 
+  /* Fetch meeting official name when meeting key and race are available */
   useEffect(() => {
     const fetchMeetingOfficialName = async () => {
       if (meetingKey && race) {
@@ -173,14 +191,17 @@ function Dashboard() {
     fetchMeetingOfficialName();
   }, [meetingKey, race]);
 
+  /* Scroll to predictor component */
   const scrollToPredictor = () => {
     predictorRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  /* Check if all required selections are complete */
   const allSelectionsComplete = year && race && primaryDriver;
 
   return (
     <div className="dashboard-container">
+      {/* Dashboard Header */}
       <div className="bg-black w-full py-4 px-8 text-white flex items-center justify-center">
         <h1 className="text-3xl font-bold text-white">
           F1 Data Dashboard<i className="fa-solid fa-flag-checkered text-white text-3xl"></i>
@@ -188,12 +209,13 @@ function Dashboard() {
       </div>
 
       <header>
+        {/* Meeting Title */}
         {meetingOfficialName && (
           <h1 className="meeting-title" style={{color:" rgb(255, 255, 255)"}}>{meetingOfficialName}</h1>
         )}
         
         <div className="controls-container">
-            
+            {/* Selection Controls */}
             <div className="controls-row">
               <YearDropdown 
                 onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
@@ -210,33 +232,31 @@ function Dashboard() {
               />
             </div>
 
+            
+            {/* Top Three Drivers Display and Track Map */}
             {allSelectionsComplete && (
-              <div className="top-three-container">
-                <TopDrivers year={year} raceName={race} />
+              <div className="flex-container">
+                <div className="podium-container">
+                  <TopDrivers year={year} raceName={race} />
+                </div>
+                <TrackMap raceName={race} />
               </div>
             )}
-            
+
+            {/* Weather Information */}
             {allSelectionsComplete && (
               <div className="weather">
                 <Weather meetingKey={meetingKey} sessionKey={sessionKey} />
               </div>
             )}
-            
-            {allSelectionsComplete && driverNumber && (
-              <DriverRaceInfo
-                sessionKey={sessionKey}
-                meetingKey={meetingKey}
-                driverNumber={driverNumber}
-                year={year}
-                round={selectedRound}
-              />
-            )}
           </div>
       </header>
 
+      {/* Main Dashboard Content */}
       {allSelectionsComplete && (
         <div className="dashboard-grid">
           <main className="main-content">
+            {/* Driver Header */}
             {driverImage && (
               <div 
                 className="driver-header"
@@ -247,11 +267,22 @@ function Dashboard() {
                   driverName={primaryDriver}
                 />
                 <h2 className="driver-name">{primaryDriver}</h2>
+                {driverNumber && (
+                  <DriverRaceInfo
+                    sessionKey={sessionKey}
+                    meetingKey={meetingKey}
+                    driverNumber={driverNumber}
+                    year={year}
+                    round={selectedRound}
+                  />
+                )}
               </div>
             )}
 
+            {/* Charts and Visualizations */}
             {primaryDriver && sessionKey && meetingKey && (
               <div className="charts-grid">
+                {/* Combined Charts Section */}
                 <div className="dashboard-card combined-charts">
                   <CombinedCharts 
                     primaryDriver={primaryDriver}
@@ -266,6 +297,7 @@ function Dashboard() {
                   />
                 </div>
                 
+                {/* Stints and Driver Ratings Section */}
                 <div className="charts-row">
                   <div className="dashboard-card charts-card">
                     <Stints 
@@ -282,13 +314,16 @@ function Dashboard() {
                   </div>
                 </div>
 
+                {/* Driver Position Flow Section */}
                 <div className="dashboard-card charts-card">
-                  <TeamPosition 
+                  <DriverPosition 
                     year={year}
                     round={selectedRound}
+                    sessionKey={sessionKey}
                   />
                 </div>
 
+                {/* Winner Predictor Section */}
                 <div className="dashboard-card charts-card" ref={predictorRef}>
                   <WinnerPredictor 
                     sessionKey={sessionKey}
