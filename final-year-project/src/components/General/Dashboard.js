@@ -204,7 +204,7 @@ function Dashboard() {
       {/* Dashboard Header */}
       <div className="bg-black w-full py-4 px-8 text-white flex items-center justify-center">
         <h1 className="text-3xl font-bold text-white">
-          F1 Data Dashboard<i className="fa-solid fa-flag-checkered text-white text-3xl"></i>
+          F1 Data Visualizations<i className="fa-solid fa-flag-checkered text-white text-3xl"></i>
         </h1>
       </div>
 

@@ -538,12 +538,10 @@ app.get('/api/driver-positions', async (req, res) => {
                         }else if (driverNumber == 38){
                             driverNumber = 87;
                         }
-                        console.log("Driver number:", driverNumber);
                         if (driverNumber && f1Response.data && Array.isArray(f1Response.data) && f1Response.data.length > 0) {
                             /* Loop through all drivers in the response */
                             for (let i = 0; i < f1Response.data.length; i++) {
                                 if (f1Response.data[i].driver_number == driverNumber) {
-                                    console.log("Found matching driver:", f1Response.data[i].driver_number);
                                     teamColor = f1Response.data[i].team_colour;
                                     if (teamColor && !teamColor.startsWith('#')) {
                                         teamColor = `#${teamColor}`;
@@ -870,7 +868,6 @@ app.get('/api/top-three', async (req, res) => {
         const calendarUrl = `http://api.jolpi.ca/ergast/f1/${year}/races.json`;
         const calendarResponse = await axios.get(calendarUrl);
         const calendarData = calendarResponse.data;
-        
         if (calendarData.MRData?.RaceTable?.Races) {
             /* Find the race that matches the provided name */
             const races = calendarData.MRData.RaceTable.Races;

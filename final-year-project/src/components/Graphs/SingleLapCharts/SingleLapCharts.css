@@ -7,6 +7,7 @@
   background-color: rgb(19, 19, 19);
   padding: 0.5rem;
   box-sizing: border-box;
+  position: relative;
 }
 
 /* Title and header elements */
@@ -20,6 +21,18 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 0.25rem;
   height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Fallback indicator styling */
+.fallback-indicator {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #ffa500;
+  margin-left: 5px;
+  opacity: 0.8;
 }
 
 .lap-number {
@@ -35,6 +48,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
 }
 
 /* Sector charts grid layout */
@@ -66,6 +80,85 @@
   color: white;
   border: 1px solid #333;
   border-radius: 4px;
+}
+
+/* Loading overlay */
+.chart-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(19, 19, 19, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+/* Loading spinner */
+.chart-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spinner 1s linear infinite;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Loading text */
+.chart-loading-text {
+  color: #ffffff;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+
+/* Error overlay */
+.chart-error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(19, 19, 19, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Error message */
+.chart-error-message {
+  color: #ff6b6b;
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+}
+
+/* Retry button */
+.chart-retry-button {
+  background-color: #2d63c8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.chart-retry-button:hover {
+  background-color: #3a74de;
 }
 
 /* Responsive layout for mobile */

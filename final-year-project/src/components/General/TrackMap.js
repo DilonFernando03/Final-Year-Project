@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
-// Function to dynamically import track images
+/* Function to dynamically import track images */
 const importTrackImage = (raceName) => {
   try {
-    // Try to dynamically import the image based on race name
     return require(`../../images/Track Maps/${raceName}.png`);
   } catch (error) {
     console.error(`Error importing track image for ${raceName}:`, error);
@@ -18,10 +17,10 @@ function TrackMap({ raceName }) {
   useEffect(() => {
     if (!raceName) return;
     
-    // Reset error state when raceName changes
+    /* Reset error state when raceName changes */
     setImageError(false);
     
-    // Try to import the track image
+    /* Try to import the track image */
     const image = importTrackImage(raceName);
     setTrackImage(image);
   }, [raceName]);
@@ -41,12 +40,12 @@ function TrackMap({ raceName }) {
               console.log(`Could not load track map for: ${raceName}`);
               setImageError(true);
               e.target.onerror = null;
-              // Fallback to a simple placeholder
-              e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect fill='%23666666' width='200' height='150'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='14' x='100' y='75' text-anchor='middle'%3E" + raceName + " Circuit%3C/text%3E%3C/svg%3E";
+              /* Fallback to a simple placeholder with transparent background */
+              e.target.src = "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='180' viewBox='0 0 240 180'%3E%3Crect fill='rgba(0,0,0,0.1)' width='240' height='180' rx='5'/%3E%3Ctext fill='%23ffffff' font-family='Arial' font-size='16' x='120' y='90' text-anchor='middle' dominant-baseline='middle' style='text-shadow: 1px 1px 2px rgba(0,0,0,0.7);'%3E" + raceName + " Circuit%3C/text%3E%3C/svg%3E";
             }}
           />
         ) : (
-          // Simple text placeholder if image fails to load
+          /* Transparent placeholder if image fails to load */
           <div 
             className="track-map-image" 
             style={{
@@ -54,13 +53,15 @@ function TrackMap({ raceName }) {
               alignItems: 'center',
               justifyContent: 'center',
               width: '100%',
-              height: '100px',
-              backgroundColor: '#333',
+              height: '160px',
+              backgroundColor: 'rgba(0, 0, 0, 0.1)',
+              backdropFilter: 'blur(2px)',
               color: 'white',
               borderRadius: '4px',
               padding: '10px',
               textAlign: 'center',
-              fontSize: '14px'
+              fontSize: '16px',
+              textShadow: '1px 1px 3px rgba(0, 0, 0, 0.7)'
             }}
           >
             {raceName} Circuit

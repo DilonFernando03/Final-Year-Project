@@ -120,6 +120,7 @@ function TopDrivers({ year, raceName }) {
           `http://localhost:5000/api/top-three?year=${year}&raceName=${modifiedRaceName}`
         );
         const data = await response.json();
+        console.log(data)
         /* Then enrich with driver details (from cache or API) */
         const enrichedDrivers = await Promise.all(
           data.topThree.map(driver => getDriverDetails(driver, year))
@@ -189,7 +190,7 @@ const mapRaceNameToPitwall = (raceName) => {
     "Marina Bay": "singapore",
     "Austin": "united-states",
     "Mexico City": "mexican",
-    "São Paulo": "sao-paulo",
+    "São Paulo": "São Paulo",
     "Las Vegas": "las-vegas",
     "Lusail": "qatar",
     "Yas Island": "abu-dhabi"

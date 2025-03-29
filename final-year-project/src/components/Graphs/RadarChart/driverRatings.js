@@ -15,7 +15,6 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
   const [error, setError] = useState(null);
   const [driverNumbers, setDriverNumbers] = useState({});
   const chartRef = useRef(null);
-  const chartInstance = useRef(null);
 
   useEffect(() => {
     if (window.Plotly) return;
@@ -191,7 +190,7 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
         name: driverStats.primary.name,
         line: {
           color: 'rgb(54, 162, 235)',
-          width: 2
+          width: 3
         },
         fillcolor: 'rgba(54, 162, 235, 0.2)'
       });
@@ -221,7 +220,7 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
         name: stats.name,
         line: {
           color: color,
-          width: 2
+          width: 3
         },
         fillcolor: rgba
       });
@@ -235,49 +234,68 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
     
     /* Define the layout for the radar chart */
     const layout = {
+      title: {
+        text: 'Driver Stats',
+        font: {
+          size: 18,
+          family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          color: 'white'
+        },
+        y: 1.0  // Position the title at the very top of the chart
+      },
       polar: {
         radialaxis: {
           visible: true,
           range: [minValue, maxValue],
           tickfont: {
-            size: 10,
+            size: 11,
             family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             color: 'rgb(161, 161, 161)'
           },
-          gridcolor: 'rgb(161, 161, 161)',
-          bgcolor: 'rgb(19, 19, 19)'
+          gridcolor: 'rgba(161, 161, 161, 0.5)',
+          gridwidth: 0.5,
+          bgcolor: 'rgba(19, 19, 19, 0)'
         },
         angularaxis: {
           direction: 'clockwise',
           tickfont: {
-            size: 12,
+            size: 13,
             weight: 'bold',
             family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             color: 'white'
           },
-          gridcolor: 'rgb(161, 161, 161)'
+          gridcolor: 'rgba(161, 161, 161, 0.5)',
+          gridwidth: 0.5
         },
         gridshape: 'circular',
-        bgcolor: 'rgb(19, 19, 19)'
+        bgcolor: 'rgba(19, 19, 19, 0)',
+        // Position the chart lower in the container - key change
+        domain: {
+          x: [0, 1],      // Full width (unchanged)
+          y: [0.05, 0.85]  // Shifted down by 5% from the top, 15% from bottom
+        }
       },
       showlegend: true,
       legend: {
         orientation: 'h',
-        y: -0.2,
+        y: -0.15,  // Position legend near bottom
+        x: 0.5,
+        xanchor: 'center',
         font: {
           size: 12,
           family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           color: 'white'
-        }
+        },
+        bgcolor: 'rgba(0,0,0,0.2)'
       },
       margin: {
-        l: 50,
-        r: 50,
-        t: 20,
-        b: 50
+        l: 40,
+        r: 40,
+        t: 60,  // Increased top margin for title
+        b: 60   // Bottom margin for legend
       },
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
+      paper_bgcolor: '#131313',
+      plot_bgcolor: '#131313',
       font: {
         color: 'white'
       },
@@ -300,15 +318,10 @@ function DriverRatings({ driverNumber, selectedDrivers, driverColors }) {
 
   return (
     <div className="ratings-container">
-      {loading && <div className="loading">Loading...</div>}
-      {error && <div className="error">Error: {error}</div>}
-      {!loading && !error && Object.keys(driverStats).length > 0 && (
-        <>
-          <h2 className="ratings-title">Driver Stats</h2>
-          <div className="ratings-content">
-            <div ref={chartRef} className="rating-plot"></div>
-          </div>
-        </>
+      {loading && <div className="loading-indicator">Loading driver statistics...</div>}
+      {error && <div className="error-message">{error}</div>}
+      {!loading && !error && (
+        <div ref={chartRef} className="rating-plot"></div>
       )}
     </div>
   );
