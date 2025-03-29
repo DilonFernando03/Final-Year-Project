@@ -64,7 +64,7 @@ function TrackMap({ raceName }) {
               textShadow: '1px 1px 3px rgba(0, 0, 0, 0.7)'
             }}
           >
-            {raceName} Circuit
+            {raceName} Track Map
           </div>
         )}
       </div>
