@@ -1,0 +1,40 @@
+{
+  "files": {
+    "main.css": "/Final-Year-Project/static/css/main.6852c73c.css",
+    "main.js": "/Final-Year-Project/static/js/main.c616948b.js",
+    "static/media/France.png": "/Final-Year-Project/static/media/France.dd7a08ed7a8f43e829c9.png",
+    "static/media/Sakhir.png": "/Final-Year-Project/static/media/Sakhir.97cae516862f494f07ed.png",
+    "static/media/Miami.png": "/Final-Year-Project/static/media/Miami.0e59f9bad1253ddbc4ab.png",
+    "static/media/Austin.png": "/Final-Year-Project/static/media/Austin.fbea3588823941fce7a8.png",
+    "static/media/Baku.png": "/Final-Year-Project/static/media/Baku.26cf9d9d41db6c546473.png",
+    "static/media/Imola.png": "/Final-Year-Project/static/media/Imola.558a42ba7330b9a2295e.png",
+    "static/media/Spa-Francorchamps.png": "/Final-Year-Project/static/media/Spa-Francorchamps.8cdf211abc00d849225d.png",
+    "static/media/Zandvoort.png": "/Final-Year-Project/static/media/Zandvoort.923c11648faa871bc4f8.png",
+    "static/media/Yas Island.png": "/Final-Year-Project/static/media/Yas Island.18a082d4397394518663.png",
+    "static/media/São Paulo.png": "/Final-Year-Project/static/media/São Paulo.5bcecb98d04649dbde78.png",
+    "static/media/Montréal.png": "/Final-Year-Project/static/media/Montréal.d08759c55903a9675be8.png",
+    "static/media/Suzuka.png": "/Final-Year-Project/static/media/Suzuka.091ccee4228839a23c89.png",
+    "static/media/Barcelona.png": "/Final-Year-Project/static/media/Barcelona.ae9f62845f7fabf2cdee.png",
+    "static/media/Las Vegas.png": "/Final-Year-Project/static/media/Las Vegas.ca191ed42df341d7004c.png",
+    "static/media/Lusail.png": "/Final-Year-Project/static/media/Lusail.2a2f626b252b26b6d256.png",
+    "static/media/Spielberg.png": "/Final-Year-Project/static/media/Spielberg.cb8fbfd653e2555d6493.png",
+    "static/media/Budapest.png": "/Final-Year-Project/static/media/Budapest.31ccd2fd4bb0820d2f7f.png",
+    "static/media/Shanghai.png": "/Final-Year-Project/static/media/Shanghai.0556e9b87784cd9f9d32.png",
+    "static/media/Monaco.png": "/Final-Year-Project/static/media/Monaco.d2faac5d925e56473fe6.png",
+    "static/media/Marina Bay.png": "/Final-Year-Project/static/media/Marina Bay.82697f896bb03283dc9b.png",
+    "static/media/Monza.png": "/Final-Year-Project/static/media/Monza.a84c83ba9199b14172e2.png",
+    "static/media/Melbourne.png": "/Final-Year-Project/static/media/Melbourne.7b4b1137d6af71041e12.png",
+    "static/media/Silverstone.png": "/Final-Year-Project/static/media/Silverstone.e8b83bc9e7338acf06d4.png",
+    "static/media/Portimao.png": "/Final-Year-Project/static/media/Portimao.977b468515b05d6ab90b.png",
+    "static/media/Jeddah.png": "/Final-Year-Project/static/media/Jeddah.47d67514cfb3e8d227d3.png",
+    "static/media/Mexico City.png": "/Final-Year-Project/static/media/Mexico City.92d2f19344749dd51b40.png",
+    "static/media/darkb.jpg": "/Final-Year-Project/static/media/darkb.e345e00f714ffd612f37.jpg",
+    "index.html": "/Final-Year-Project/index.html",
+    "main.6852c73c.css.map": "/Final-Year-Project/static/css/main.6852c73c.css.map",
+    "main.c616948b.js.map": "/Final-Year-Project/static/js/main.c616948b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.6852c73c.css",
+    "static/js/main.c616948b.js"
+  ]
+}
