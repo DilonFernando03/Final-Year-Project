@@ -2,9 +2,14 @@
   "name": "final-year-project",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://DilonFernando03.github.io/Final-Year-Project",
   "main": "index.js",
+  "private": true,
   "scripts": {
     "start": "react-scripts start",
+    "build": "react-scripts build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,5 +19,8 @@
     "plotly.js": "^2.35.2",
     "react-plotly.js": "^2.6.0",
     "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1"
   }
 }
