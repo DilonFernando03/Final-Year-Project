@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import "./TopThree.css";
+import { API_BASE_URL } from '../../config';
 
 function TopDrivers({ year, raceName }) {
   const [topDrivers, setTopDrivers] = useState([]);
@@ -7,7 +8,7 @@ function TopDrivers({ year, raceName }) {
   /* Check if driver data exists in cache */
   const checkCache = async (driverNumber, year) => {
     try {
-      const response = await fetch('http://localhost:5000/api/check-podium-cache', {
+      const response = await fetch(`${API_BASE_URL}/api/check-podium-cache`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,7 +30,7 @@ function TopDrivers({ year, raceName }) {
   /* Save driver information to cache */
   const saveToCache = async (driverInfo) => {
     try {
-      await fetch('http://localhost:5000/api/save-podium-cache', {
+      await fetch(`${API_BASE_URL}/api/save-podium-cache`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +118,7 @@ function TopDrivers({ year, raceName }) {
         // First get top three from server
         const modifiedRaceName = mapRaceNameToPitwall(raceName);
         const response = await fetch(
-          `http://localhost:5000/api/top-three?year=${year}&raceName=${modifiedRaceName}`
+          `${API_BASE_URL}/api/top-three?year=${year}&raceName=${modifiedRaceName}`
         );
         const data = await response.json();
         console.log(data)

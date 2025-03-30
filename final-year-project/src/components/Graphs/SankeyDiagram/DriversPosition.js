@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../ui/card';
 import './DriversPosition.css';
+import { API_BASE_URL } from '../../../config';
 
 function DriverPosition({ year, round, sessionKey }) {
   const [flowData, setFlowData] = useState(null);
@@ -16,7 +17,7 @@ function DriverPosition({ year, round, sessionKey }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`http://localhost:5000/api/driver-positions?year=${year}&round=${round}&sessionKey=${sessionKey}`);
+        const response = await fetch(`${API_BASE_URL}/api/driver-positions?year=${year}&round=${round}&sessionKey=${sessionKey}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }       

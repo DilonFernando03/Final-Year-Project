@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Loader2, TrendingUp, Award, Clock } from 'lucide-react';
+import { Loader2, TrendingUp, Award, Clock, Import } from 'lucide-react';
 import Predictor from '../../lib/predictor';
 import './predictor.css';
+import { API_BASE_URL } from '../../config';
 
 const WinnerPredictor = () => {
   const [nextRace, setNextRace] = useState(null);
@@ -22,14 +23,14 @@ const WinnerPredictor = () => {
         setLoading(true);
 
         /* Fetch next race information */
-        const raceResponse = await fetch('http://localhost:5000/api/next-race');
+        const raceResponse = await fetch(`${API_BASE_URL}/api/next-race`);
         if (!raceResponse.ok) throw new Error('Failed to fetch next race data');
         const raceData = await raceResponse.json();
         setNextRace(raceData);
 
         /* Fetch current drivers for the season */
         const driversResponse = await fetch(
-          `http://localhost:5000/api/current-drivers?season=${raceData.season}`
+          `${API_BASE_URL}/api/current-drivers?season=${raceData.season}`
         );
         if (!driversResponse.ok) throw new Error('Failed to fetch drivers');
         const driversData = await driversResponse.json();

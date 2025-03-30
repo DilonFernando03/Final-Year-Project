@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './DriverInfoToolTip.css';
+import { API_BASE_URL } from '../../config';
 
 function DriverInfoTipTool({ driverImage, driverName }) {
   /* State for driver details, loading status, and error handling */
@@ -28,7 +29,7 @@ function DriverInfoTipTool({ driverImage, driverName }) {
       
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5000/api/driver-details?driverName=${driverName}`);
+        const response = await fetch(`${API_BASE_URL}/api/driver-details?driverName=${driverName}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch driver details');

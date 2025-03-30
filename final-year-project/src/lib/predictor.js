@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 import _ from 'lodash';
-
+import { API_BASE_URL } from '../config';
 class Predictor {
   constructor() {
     this.model = null;
@@ -32,7 +32,7 @@ class Predictor {
             return this.getDefaultHistory();
         }
         const response = await fetch(
-            `http://localhost:5000/api/driver-history?` + 
+            `${API_BASE_URL}/api/driver-history?` + 
             `driverId=${encodeURIComponent(driver.driverId)}&` +
             `driverNum=${encodeURIComponent(driverNum)}&` +
             `circuitId=${encodeURIComponent(nextRace.circuitId)}`
@@ -76,7 +76,7 @@ class Predictor {
         }
 
         const response = await fetch(
-            `http://localhost:5000/api/season-stats?driverId=${encodeURIComponent(driverId)}`
+            `${API_BASE_URL}/api/season-stats?driverId=${encodeURIComponent(driverId)}`
         );
         if (!response.ok) throw new Error(`Failed to fetch stats for ${driver.name}`);
         
@@ -111,7 +111,7 @@ class Predictor {
 
   async getCarPerformance(team) {
     try {
-      const response = await fetch(`http://localhost:5000/api/team-stats?constructorId=${team}`);
+      const response = await fetch(`${API_BASE_URL}/api/team-stats?constructorId=${team}`);
       if (!response.ok) {
         console.warn(`Failed to fetch stats for team ${team}, using default values`);
         return this.getDefaultCarPerformance();
@@ -188,9 +188,6 @@ class Predictor {
       // Sort by score and calculate probabilities
       driverScores.sort((a, b) => b.score - a.score);
       
-      // Apply temperature scaling for better probability distribution
-      // Lower temperature (e.g., 0.2) makes distribution more peaked (more confident)
-      // Higher temperature (e.g., 0.5) makes distribution more uniform (less confident)
       const temperature = 0.3;
       
       // Calculate probabilities using softmax with temperature

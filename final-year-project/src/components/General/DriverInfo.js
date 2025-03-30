@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import './DriverInfo.css'; // We'll create this stylesheet
+import './DriverInfo.css';
+import { API_BASE_URL } from '../../config';
 
 function DriverRaceInfo({ driverNumber, year, round }) {
   /* Component state */
@@ -28,7 +29,7 @@ function DriverRaceInfo({ driverNumber, year, round }) {
 
         /* First get current drivers to map driver number to driverId */
         const driversResponse = await fetch(
-          `http://localhost:5000/api/current-drivers?season=${year}`
+          `${API_BASE_URL}/api/current-drivers?season=${year}`
         );
         if (!driversResponse.ok) {
           /* Implement exponential backoff for rate limiting */
@@ -52,7 +53,7 @@ function DriverRaceInfo({ driverNumber, year, round }) {
         
         /* Fetch race results using driverId and year */
         const resultsResponse = await fetch(
-          `http://localhost:5000/api/race-results?driverId=${encodeURIComponent(driver.driverId)}&year=${year}&round=${round}`
+          `${API_BASE_URL}/api/race-results?driverId=${encodeURIComponent(driver.driverId)}&year=${year}&round=${round}`
         );
         if (!resultsResponse.ok) {
           throw new Error(`Failed to fetch results: ${resultsResponse.statusText}`);
