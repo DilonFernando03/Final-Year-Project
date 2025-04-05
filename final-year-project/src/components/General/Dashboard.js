@@ -62,6 +62,19 @@ function Dashboard() {
 
   /* Updates race selection and associated round */
   const handleRaceChange = (raceLocation) => {
+     /* Reset dependent selections when race changes */
+    setPrimaryDriver(null);
+    setLap(null);
+    setDrivers([]);
+    setAvailableLaps([]);
+    setSessionKey(null);
+    setMeetingKey(null);
+    setDriverImage('');
+    setDriverColour('');
+    setDriverNumber('');
+    setMeetingOfficialName('');
+    setSelectedDrivers([]);
+    setDriverColors({});
     const selectedRace = availableRaces.find(r => r.location === raceLocation);
     if (selectedRace) {
       setRace(raceLocation);
@@ -191,11 +204,6 @@ function Dashboard() {
     fetchMeetingOfficialName();
   }, [meetingKey, race]);
 
-  /* Scroll to predictor component */
-  const scrollToPredictor = () => {
-    predictorRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   /* Check if all required selections are complete */
   const allSelectionsComplete = year && race && primaryDriver;
 
@@ -217,19 +225,29 @@ function Dashboard() {
         <div className="controls-container">
             {/* Selection Controls */}
             <div className="controls-row">
-              <YearDropdown 
-                onYearChange={(newYear) => { setYear(newYear); resetDashboard(); }} 
-              />
-              <RaceDropdown 
-                races={availableRaces}
-                onRaceChange={handleRaceChange}
-                disabled={!year} 
-              />
-              <DriverDropdown 
-                drivers={drivers} 
-                onDriverChange={setPrimaryDriver} 
-                disabled={!year || !race} 
-              />
+            <YearDropdown 
+            onYearChange={(newYear) => { 
+              resetDashboard(); 
+              setYear(newYear);
+            }} 
+          />
+          <RaceDropdown 
+            races={availableRaces}
+            onRaceChange={handleRaceChange}
+            disabled={!year} 
+          />
+          <DriverDropdown 
+            drivers={drivers} 
+            onDriverChange={(driver) => {
+              setLap(null);
+              setDriverImage('');
+              setDriverColour('');
+              setDriverNumber('');
+              setPrimaryDriver(driver);
+              setSelectedDrivers([]);
+            }} 
+            disabled={!year || !race} 
+          />
             </div>
 
             
