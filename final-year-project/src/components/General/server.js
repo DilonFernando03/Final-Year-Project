@@ -28,11 +28,6 @@ let dataStore = {
     podiumCache: []
 };
 
-/* 
- * In Render's environment, we can't easily load local CSV files.
- * Instead of trying to load the files, we'll rely on API data
- * and initialize with empty arrays.
- */
 async function initializeDataStore() {
     console.log('Initializing data store with empty arrays');
     // The dataStore is already initialized with empty arrays
@@ -47,6 +42,64 @@ async function initializeDataStore() {
         console.error('Failed to initialize data store:', error);
     }
 })();
+
+/* Podium Cache Endpoints */
+// Check cache
+app.post('/api/check-podium-cache', express.json(), (req, res) => {
+    try {
+      const { year, raceName } = req.body;
+      
+      if (!year || !raceName) {
+        return res.json({ cached: false });
+      }
+      
+      const cacheKey = `${year}-${raceName}`;
+      
+      // Look for this race in the cached podium data
+      const cachedData = dataStore.podiumCache.find(item => 
+        item.cacheKey === cacheKey
+      );
+      
+      if (cachedData) {
+        return res.json(cachedData.data);
+      } else {
+        return res.json({ cached: false });
+      }
+    } catch (error) {
+      console.error('Error in check-podium-cache:', error);
+      return res.json({ cached: false });
+    }
+  });
+  
+  // Save to cache
+  app.post('/api/save-podium-cache', express.json(), (req, res) => {
+    try {
+      const { year, raceName, data } = req.body;
+      
+      if (!year || !raceName || !data) {
+        return res.json({ success: false, error: 'Missing required parameters' });
+      }
+      
+      const cacheKey = `${year}-${raceName}`;
+      
+      // Remove any existing entry for this race
+      dataStore.podiumCache = dataStore.podiumCache.filter(item => 
+        item.cacheKey !== cacheKey
+      );
+      
+      // Add the new data to the cache
+      dataStore.podiumCache.push({
+        cacheKey,
+        data,
+        timestamp: new Date().toISOString()
+      });
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Error in save-podium-cache:', error);
+      return res.json({ success: false, error: error.message });
+    }
+  });
 
 /* Season Stats Endpoint */
 app.get('/api/season-stats', async (req, res) => {
@@ -121,6 +174,36 @@ app.get('/api/season-stats', async (req, res) => {
         });
     }
 });
+
+/* OpenF1 API Proxy */
+app.use('/api/openf1-proxy', async (req, res) => {
+    try {
+      const apiUrl = `https://api.openf1.org/v1${req.url}`;
+      console.log(`Proxying request to: ${apiUrl}`);
+      
+      const response = await axios.get(apiUrl, {
+        timeout: 10000,
+        headers: req.headers,
+      });
+      
+      res.json(response.data);
+    } catch (error) {
+      console.error('Error proxying OpenF1 API:', error.message);
+      
+      if (error.response) {
+        /* Forward the status code and response from the API */
+        res.status(error.response.status).json({
+          error: `API Error: ${error.response.status}`,
+          message: error.response.data
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Failed to fetch data from OpenF1 API',
+          message: error.message
+        });
+      }
+    }
+  });
 
 /* Driver History Endpoint */
 app.get('/api/driver-history', async (req, res) => {
