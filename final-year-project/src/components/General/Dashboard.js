@@ -170,9 +170,11 @@ function Dashboard() {
     if (meetingKey && sessionKey) {
       const fetchDriverData = async () => {
         try {
+          console.log(meetingKey, sessionKey)
           const response = await fetch(`https://api.openf1.org/v1/drivers?meeting_key=${meetingKey}&session_key=${sessionKey}`);
           const data = await response.json();
           const driverData = data.map((driver) => driver.full_name);
+          console.log(driverData)
           const colors = {};
           data.forEach(driver => {
             colors[driver.full_name] = driver.team_colour.startsWith('#') ? driver.team_colour : `#${driver.team_colour}`;
@@ -194,6 +196,7 @@ function Dashboard() {
         try {
           const response = await fetch(`https://api.openf1.org/v1/meetings?meeting_key=${meetingKey}`);
           const data = await response.json();
+          console.log(data)
           const officialName = data[0].meeting_official_name;
           setMeetingOfficialName(officialName);
         } catch (error) {

@@ -403,7 +403,7 @@ function Stints({ sessionKey, meetingKey }) {
         l: 160,
         r: 30,
         t: 50,
-        b: 80  // Increased bottom margin for controls
+        b: 80
       },
       showlegend: true,
       legend: {
@@ -442,7 +442,7 @@ function Stints({ sessionKey, meetingKey }) {
           xanchor: 'left',
           yanchor: 'bottom',
           x: 0,
-          y: -0.3  /* Moved down to avoid overlap with controls */
+          y: -0.3 
         }
       ]
     };
